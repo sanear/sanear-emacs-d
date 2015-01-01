@@ -1,0 +1,6 @@
+[submodule "plugins/pig-mode"]
+	path = plugins/pig-mode
+	url = https://github.com/motus/pig-mode
+[submodule "plugins/go-mode"]
+	path = plugins/go-mode
+	url = https://github.com/dominikh/go-mode.el
