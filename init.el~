@@ -51,7 +51,7 @@
 (setq ess-ask-for-ess-directory nil) ;otherwise you are prompted each time you start an interactive R session
 
 ;; Keybinding for the MagritteR pipe '%>%'
-(define-key ess-mode-map (kbd "s-.") "%>%")
+(define-key ess-mode-map [(super .)] "%>%")
 
 ;; Using ssh.el to do remote ESS R sessions
 (require 'ssh)
