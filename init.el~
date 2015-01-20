@@ -15,7 +15,8 @@
 
 ;; Golang autocompletion
 (add-to-list 'load-path "~/.emacs.d/plugins/auto-complete")
-;(require 'auto-complete)
+(add-to-list 'load-path "~/.emacs.d/plugins/popup-el")
+(require 'auto-complete)
 (require 'go-autocomplete)
 (require 'auto-complete-config)
 (ac-config-default)

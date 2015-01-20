@@ -21,8 +21,11 @@
 (require 'auto-complete-config)
 (ac-config-default)
 
-;; (add-to-list 'ac-dictionary-directories "~/.emacs.d/dict")
+;; PHP mode and autocompletion
+(add-to-list 'load-path "~/.emacs.d/plugins/php-mode")
+(require 'php-mode)
 
+;; (add-to-list 'ac-dictionary-directories "~/.emacs.d/dict")
 (global-auto-complete-mode t)
 (add-to-list 'ac-modes 'sql-mode)
 (add-to-list 'ac-modes 'python-mode)
@@ -32,6 +35,7 @@
 (add-to-list 'ac-modes 'java-mode)
 (add-to-list 'ac-modes 'shell-mode)
 (add-to-list 'ac-modes 'emacs-lisp)
+(add-to-list 'ac-modes 'php-mode)
 
 ;; Pig mode
 (add-to-list 'load-path "~/.emacs.d/plugins/pig-mode")
