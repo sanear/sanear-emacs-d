@@ -1,22 +1,23 @@
 @itemize @bullet
 @item Languages Supported:
   @itemize @bullet
-  @item S family (S 3/4, S-PLUS and R)
+  @item S family (R and S+ AKA S-PLUS)
   @item SAS
-  @item BUGS/JAGS
-  @item Stata 
-  @item XLispStat including Arc and ViSta
+  @item OpenBUGS/JAGS
+  @item Stata
+@c  @item XLispStat including Arc and ViSta
+  @item Julia
   @end itemize
-@item Editing source code (S family, SAS, BUGS/JAGS, Stata)
+@item Editing source code (S family, SAS, OpenBUGS/JAGS, Stata, Julia)
   @itemize @bullet
   @item Syntactic indentation and highlighting of source code
   @item Partial evaluation of code
   @item Loading and error-checking of code
   @item Source code revision maintenance
-  @item Batch execution (SAS, BUGS/JAGS)
+  @item Batch execution (SAS, OpenBUGS/JAGS)
   @item Use of imenu to provide links to appropriate functions
   @end itemize
-@item Interacting with the process (S family, SAS, Stata)
+@item Interacting with the process (S family, SAS, Stata, Julia)
   @itemize @bullet
   @item Command-line editing
   @item Searchable Command history
@@ -30,6 +31,12 @@
   @item Recording and saving transcript files
   @item Manipulating and editing saved transcripts
   @item Re-evaluating commands from transcript files
+  @end itemize
+@item Interaction with Help Pages and other Documentation (R)
+  @itemize @bullet
+  @item Fast Navigation
+  @item Sending Examples to running ESS process.
+  @item Fast Transfer to Further Help Pages
   @end itemize
 @item Help File Editing (R)
   @itemize @bullet

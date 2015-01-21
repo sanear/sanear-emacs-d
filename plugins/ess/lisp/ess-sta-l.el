@@ -1,7 +1,7 @@
 ;;; ess-sta-l.el --- Stata customization
 
 ;; Copyright (C) 1999--2000, Thomas Lumley, A. J. Rossini, Brendan Halpin.
-;; Copyright (C) 1997--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;     Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: Thomas Lumley <thomas@biostat.washington.edu>,
@@ -23,9 +23,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -43,14 +42,8 @@
 ;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 ;;
-;; This file is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-;;
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; (for the GNU GPL see above)
+
 
 ;;; Code:
 
@@ -82,41 +75,41 @@ regexp-search, and so specials should be quoted.
 (defconst ess-help-STA-sec-regex "^[A-Z a-z]+:?\n-+\\|http:"
   "Reg(ular) Ex(pression) of section headers in help file.")
 
-(defvar STA-syntax-table nil "Syntax table for Stata code.")
-(if STA-syntax-table
-    nil
-  (setq STA-syntax-table (make-syntax-table))
-  (modify-syntax-entry ?\\ "." STA-syntax-table) ;nullify escape meaning
-  (modify-syntax-entry ?\$ "." STA-syntax-table)
-  (modify-syntax-entry ?` "(\'" STA-syntax-table)
-  (modify-syntax-entry ?\' ")`" STA-syntax-table)
-  ;;--------- begin cut-and-paste from  lisp/progmodes/c-langs.el
-  (cond
-   ;; XEmacs 19, 20, 21
-   ((memq '8-bit c-emacs-features)
-    (modify-syntax-entry ?/  ". 1456" STA-syntax-table)
-    (modify-syntax-entry ?*  ". 23"   STA-syntax-table))
-   ;; Emacs 19, 20, 21
-   ((memq '1-bit c-emacs-features)
-    (modify-syntax-entry ?/  ". 124b" STA-syntax-table)
-    (modify-syntax-entry ?*  ". 23"   STA-syntax-table))
-   ;; incompatible
-   (t (error "CC Mode is incompatible with this version of Emacs"))
-   )
-  (modify-syntax-entry ?\n "> b"  STA-syntax-table)
-  ;; Give CR the same syntax as newline, for selective-display
-  (modify-syntax-entry ?\^m "> b" STA-syntax-table)
-  ;;--------- end cut-and-paste ------------------
-  (modify-syntax-entry ?+ "." STA-syntax-table)
-  (modify-syntax-entry ?- "." STA-syntax-table)
-  (modify-syntax-entry ?= "." STA-syntax-table)
-  (modify-syntax-entry ?% "." STA-syntax-table)
-  (modify-syntax-entry ?< "." STA-syntax-table)
-  (modify-syntax-entry ?> "." STA-syntax-table)
-  (modify-syntax-entry ?& "." STA-syntax-table)
-  (modify-syntax-entry ?| "." STA-syntax-table)
-  (modify-syntax-entry ?~ "." STA-syntax-table))
+(defvar STA-syntax-table
+  (let ((tbl (make-syntax-table)))
+    (modify-syntax-entry ?\\ "." tbl) ;nullify escape meaning
+    (modify-syntax-entry ?\$ "." tbl)
+    (modify-syntax-entry ?` "(\'" tbl)
+    (modify-syntax-entry ?\' ")`" tbl)
+    ;;--------- begin cut-and-paste from  lisp/progmodes/c-langs.el
+    (cond
+     ;; XEmacs 19, 20, 21
+     ((memq '8-bit c-emacs-features)
+      (modify-syntax-entry ?/  ". 1456" tbl)
+      (modify-syntax-entry ?*  ". 23"   tbl))
+     ;; Emacs 19, 20, 21
+     ((memq '1-bit c-emacs-features)
+      (modify-syntax-entry ?/  ". 124b" tbl)
+      (modify-syntax-entry ?*  ". 23"   tbl))
+     ;; incompatible
+     (t (error "CC Mode is incompatible with this version of Emacs"))
+     )
+    (modify-syntax-entry ?\n "> b"  tbl)
+    ;; Give CR the same syntax as newline, for selective-display
+    (modify-syntax-entry ?\^m "> b" tbl)
+    ;;--------- end cut-and-paste ------------------
+    (modify-syntax-entry ?+ "." tbl)
+    (modify-syntax-entry ?- "." tbl)
+    (modify-syntax-entry ?= "." tbl)
+    (modify-syntax-entry ?% "." tbl)
+    (modify-syntax-entry ?< "." tbl)
+    (modify-syntax-entry ?> "." tbl)
+    (modify-syntax-entry ?& "." tbl)
+    (modify-syntax-entry ?| "." tbl)
+    (modify-syntax-entry ?~ "." tbl)
 
+    tbl)
+   "Syntax table for Stata code.")
 
 (defun ado-set-font-lock-keywords ()
   "Create font lock keywords for Stata syntax. This is from the
@@ -1130,17 +1123,14 @@ ado-mode of Bill Rising <brising@jhsph.edu>, and uses make-regexp."
    ))
 
 
-(defvar ess-STA-mode-font-lock-keywords (ado-set-font-lock-keywords)
+(defvar ess-STA-mode-font-lock-defaults (ado-set-font-lock-keywords)
   "Set the Stata mode font-lock keywords to Bill Rising's ado-mode keywords.")
 
 (defvar STA-editing-alist
-  '((paragraph-start              . (concat "^$\\|" page-delimiter))
-    (paragraph-separate           . (concat "^$\\|" page-delimiter))
+  '((paragraph-start              . (concat "[ \t\f]*$\\|" page-delimiter))
+    (paragraph-separate           . (concat  "[ \t\f]*$\\|" page-delimiter))
     (paragraph-ignore-fill-prefix . t)
-    (require-final-newline        . t)
-    (comment-start                . "/\* ")
-    (comment-end                  . " \*/")
-    (comment-start-skip           . "/\\*+ *")
+    (require-final-newline        . mode-require-final-newline)
     (comment-column               . 40)
     ;;(comment-indent-function      . 'S-comment-indent)
     ;;(ess-comment-indent           . 'S-comment-indent)
@@ -1152,7 +1142,7 @@ ado-mode of Bill Rising <brising@jhsph.edu>, and uses make-regexp."
     (ess-local-process-name       . nil)
     ;;(ess-keep-dump-files          . 'ask)
     (ess-mode-syntax-table        . STA-syntax-table)
-    (font-lock-defaults           . '(ess-STA-mode-font-lock-keywords
+    (font-lock-defaults           . '(ess-STA-mode-font-lock-defaults
                                       nil nil ((?\. . "w")))))
   "General options for editing Stata do and ado source files.")
 
@@ -1213,7 +1203,7 @@ ado-mode of Bill Rising <brising@jhsph.edu>, and uses make-regexp."
         (set-process-buffer stata-process (get-buffer-create "*stata help*"))
         (set-buffer "*stata help*")
         (setq buffer-read-only nil)
-        (set-process-filter stata-process 'ordinary-insertion-filter)
+        (set-process-filter stata-process 'inferior-ess-ordinary-filter)
         (erase-buffer)
         (process-send-string stata-process "help ")
         (process-send-string stata-process the-subject)
@@ -1243,7 +1233,7 @@ ado-mode of Bill Rising <brising@jhsph.edu>, and uses make-regexp."
         (set-process-buffer stata-process (get-buffer-create "*stata help*"))
         (set-buffer "*stata help*")
         (setq buffer-read-only nil)
-        (set-process-filter stata-process 'ordinary-insertion-filter)
+        (set-process-filter stata-process 'inferior-ess-ordinary-filter)
         (erase-buffer)
         (process-send-string stata-process "lookup ")
         (process-send-string stata-process the-subject)
@@ -1275,7 +1265,7 @@ ado-mode of Bill Rising <brising@jhsph.edu>, and uses make-regexp."
       (save-excursion
         (set-process-buffer stata-process
                             (get-buffer-create "*stata variables*"))
-        (set-process-filter stata-process 'ordinary-insertion-filter)
+        (set-process-filter stata-process 'inferior-ess-ordinary-filter)
         (set-buffer "*stata variables*")
         (setq buffer-read-only nil)
         (erase-buffer)

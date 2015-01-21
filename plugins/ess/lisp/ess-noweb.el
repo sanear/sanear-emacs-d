@@ -1,7 +1,7 @@
 ;;; ess-noweb.el --- support for Literate Data Analysis
 
 ;; Copyright (C) 1999 Mark Lunt
-;; Copyright (C) 1999--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1999--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: Mark Lunt <mark.lunt@mrc-bsu.cam.ac.uk>
@@ -24,9 +24,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -36,9 +35,9 @@
 
  ; Requires and autoloads
 
-(require 'noweb-mode)
+(require 'ess-noweb-mode)
 ;; still needed when user turns font-lock-mode *on* (from initial off):
-(autoload 'noweb-font-lock-mode "noweb-font-lock-mode")
+(autoload 'ess-noweb-font-lock-mode "ess-noweb-font-lock-mode")
 
  ; Variables
 
@@ -49,7 +48,7 @@
 ;; but is *NOT* okay to do *globally*: (setq global-font-lock-mode t)
 
 (if ess-noweb-use-font-lock
-    (require 'noweb-font-lock-mode))
+    (require 'ess-noweb-font-lock-mode))
 
  ; Functions
 
@@ -59,26 +58,35 @@
   "Tangle the current chunk and send it to the inferior ESS process.
 Arg has same meaning as for `ess-eval-region'."
   (interactive "P")
-  (let ( (process-name ess-local-process-name)
-         new-process-name
-         (cbuf (current-buffer))
-         (temp-buffer (ess-create-temp-buffer "Tangle Buffer")))
-    (noweb-tangle-chunk temp-buffer)
-    (set-buffer temp-buffer)
-    ;; When the temp buffer is created, it does not inherit any value
-    ;; of ess-local-process-name from the .Rnw buffer, so we have to set it
-    ;; here.  If ess-local-process-name is not set in the .Rnw buffer,
-    ;; it will inherit the value that is chosen here.
-    (set (make-local-variable 'ess-local-process-name) process-name)
-    (ess-eval-region (point-min) (point-max) vis "Eval buffer")
-    (if process-name
+  (let ((process-name ess-local-process-name)
+        new-process-name
+        (cbuf (current-buffer))
+        (temp-buffer (ess-create-temp-buffer "Tangle Buffer")))
+    (save-excursion
+      (ess-noweb-tangle-chunk temp-buffer)
+      (set-buffer temp-buffer)
+      ;; When the temp buffer is created, it does not inherit any value
+      ;; of ess-local-process-name from the .Rnw buffer, so we have to set it
+      ;; here.  If ess-local-process-name is not set in the .Rnw buffer,
+      ;; it will inherit the value that is chosen here.
+      (set (make-local-variable 'ess-local-process-name) process-name)
+      (ess-eval-region (point-min) (point-max) vis "Eval Chunk")
+      (if process-name
+          (kill-buffer temp-buffer)
+        ;; if process-name was nil, source buffer did not have a local process
+        ;; so keep value from temp buffer before killing it.
+        (setq new-process-name ess-local-process-name)
         (kill-buffer temp-buffer)
-      ;; if process-name was nil, source buffer did not have a local process
-      ;; so keep value from temp buffer before killing it.
-      (setq new-process-name ess-local-process-name)
-      (kill-buffer temp-buffer)
-      (set-buffer cbuf)
-      (set (make-local-variable 'ess-local-process-name) new-process-name))))
+        (set-buffer cbuf)
+        (set (make-local-variable 'ess-local-process-name) new-process-name)))))
+
+
+(defun ess-eval-chunk-and-step (&optional vis)
+  "Tangle the current chunk and send it to the inferior ESS process and
+step to the next chunk"
+  (interactive)
+  (ess-eval-chunk vis)
+  (ess-noweb-next-code-chunk 1))
 
 (defun ess-eval-chunk-and-go (vis)
   "Tangle the current chunk, send to the ESS process, and go there.
@@ -106,7 +114,7 @@ Arg has same meaning as for `ess-eval-region'."
 Arg has same meaning as for `ess-eval-region'."
   (interactive "P")
   (let ((temp-buffer (ess-create-temp-buffer "Tangle Buffer")))
-    (noweb-tangle-current-thread temp-buffer)
+    (ess-noweb-tangle-current-thread temp-buffer)
     (set-buffer temp-buffer)
     (ess-eval-region (point-min) (point-max) vis "Eval buffer")
     (kill-buffer temp-buffer)))

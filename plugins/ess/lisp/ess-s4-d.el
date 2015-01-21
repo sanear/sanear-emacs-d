@@ -1,6 +1,6 @@
 ;;; ess-s4-d.el --- S4 customization
 
-;; Copyright (C) 1997--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: A.J. Rossini <rossini@stat.sc.edu>
@@ -21,9 +21,9 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
+
 
 ;;; Commentary:
 
@@ -55,7 +55,7 @@
      (inferior-ess-help-command         . "help(\"%s\")\n")
      (inferior-ess-help-filetype . nil)
      (inferior-ess-search-list-command  . ".SmodePaths()\n")
-     (inferior-ess-load-command         . ".SmodeLoad(\"%s\")\n")
+     (ess-load-command         . ".SmodeLoad(\"%s\")\n")
      (inferior-ess-dump-command         . ".SmodeDump(\"%s\", \"%s\")\n")
 
      (inferior-ess-start-file           . nil) ;"~/.ess-S3")
@@ -95,14 +95,14 @@
   (interactive)
   (setq ess-customize-alist S4-customize-alist)
   (ess-mode S4-customize-alist proc-name)
-  (if ess-imenu-use-S (ess-imenu-R)))
+  (if ess-imenu-use-S (ess-imenu-S)))
 
 
 ;; From RMH:    ALL THIS SHOULD BE INCORPORATED BY 5.0!
 
 ;;; s4.el startup file
 ;;; Richard M. Heiberger
-;;; rmh@astro.ocis.temple.edu
+;;; rmh@temple.edu
 ;;
 ;;(load "S")
 ;;(setq inferior-S-program "/disk05/s4/betaJun96/S")

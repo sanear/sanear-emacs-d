@@ -1,6 +1,6 @@
 ;;; ess-utils.el --- General Emacs utility functions used by ESS
 
-;; Copyright (C) 1998--2010 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1998--2010 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 ;; Copyright (C) 2011--2012 A.J. Rossini, Richard M. Heiberger, Martin Maechler,
 ;;      Kurt Hornik, Rodney Sparapani, Stephen Eglen and Vitalie Spinu.
@@ -21,28 +21,130 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Code:
 
-(defun ess-inside-string-or-comment-p (pos)
-  "Return non-nil if POSition [defaults to (point)] is inside string or comment
- (according to syntax). NOT OKAY for multi-line comments!!"
-  ;;FIXME (defun ess-calculate-indent ..)  can do that ...
-  (interactive "d");point by default
-  (let ((pps (save-excursion
-               (parse-partial-sexp
-                (save-excursion (beginning-of-line) (point))
-                pos))))
-    (or (nth 3 pps) (nth 4 pps)))); 3: string,  4: comment
+(eval-when-compile
+  (require 'cl))
 
-(defsubst ess-inside-string-p ()
+(defun ess-inside-string-or-comment-p (&optional pos)
+  "Return non-nil if POSition [defaults to (point)] is inside string or comment
+ (according to syntax)."
+  ;;FIXME (defun ess-calculate-indent ..)  can do that ...
+  (interactive)
+  (setq pos (or pos (point)))
+  (let ((pps
+         ;; (parse-partial-sexp (point-min) pos)
+         (syntax-ppss pos)))
+    ;; 3: string,  4: comment
+    (or (nth 3 pps) (nth 4 pps))))
+
+
+(defun ess-inside-string-p (&optional pos)
   "Return non-nil if point is inside string (according to syntax)."
   (interactive)
+  ;; when narrowing the buffer in iESS the ppss cahce is screwed:( But it is
+  ;; very fast, so don't bother for now.
+  (let ((pps (syntax-ppss pos)))
+    (nth 3 pps))
+  ;; (nth 3 (parse-partial-sexp (point-min) pos))
+  )
+
+(defun ess-inside-comment-p (&optional pos)
+  "Return non-nil if point is inside string (according to syntax)."
+  (interactive)
+  (setq pos (or pos (point)))
   (save-excursion
-    (nth 3 (parse-partial-sexp (ess-line-beginning-position) (point)))))
+    (or (when font-lock-mode ;; this is a shortcut (works well usually)
+	  (let ((face (get-char-property pos 'face)))
+	    (eq 'font-lock-comment-face face)))
+	(nth 4 (parse-partial-sexp (progn (goto-char pos) (point-at-bol)) pos)))))
+
+(defun ess-inside-brackets-p (&optional pos curly?)
+  "Return t if position POS is inside brackets.
+POS defaults to point if no value is given. If curly? is non nil
+also return t if inside curly brackets."
+  (save-excursion
+    (let ((ppss (syntax-ppss pos))
+          (r nil))
+      (while (and (> (nth 0 ppss) 0)
+                  (not r))
+        (goto-char (nth 1 ppss))
+        (when (or (char-equal ?\[ (char-after))
+                  (and curly?
+                       (char-equal ?\{ (char-after))))
+          (setq r t))
+        (setq ppss (syntax-ppss)))
+      r)))
+
+(defun ess--extract-default-fl-keywords (keywords)
+  "Extract the t-keywords from `ess-font-lock-keywords'."
+  (delq nil (mapcar (lambda (c)
+                      (when (cdr c) (symbol-value (car c))))
+                    (if (symbolp keywords)
+                        (symbol-value keywords)
+                      keywords))))
+
+(defun ess-font-lock-toggle-keyword (keyword)
+  (interactive
+   (list (intern (ess-completing-read
+                  "Keyword to toggle"
+                  (mapcar (lambda (el) (symbol-name (car el)))
+                          (symbol-value ess-font-lock-keywords))
+                  nil t))))
+  (let* ((kwds (symbol-value (if (eq major-mode 'ess-mode)
+                                 ess-font-lock-keywords
+                               inferior-ess-font-lock-keywords)))
+         (kwd (assoc keyword kwds)))
+    (unless kwd (error "Keyword %s was not found in (inferior-)ess-font-lock-keywords list" keyword))
+    (if (cdr kwd)
+        (setcdr kwd nil)
+      (setcdr kwd t))
+    (let ((mode major-mode)
+          (dialect ess-dialect)
+          (fld (ess--extract-default-fl-keywords kwds)))
+      ;; refresh font-lock defaults in all necessary buffers
+      (mapc (lambda (b)
+              (with-current-buffer b
+                (when (and (eq major-mode mode)
+                           (eq ess-dialect dialect))
+                  (setcar font-lock-defaults fld)
+                  (font-lock-refresh-defaults))))
+            (buffer-list)))))
+
+
+(defun ess--generate-font-lock-submenu (menu)
+  "Internal, used to generate ESS font-lock submenu"
+  (append (mapcar (lambda (el)
+                    `[,(symbol-name (car el))
+                      (lambda () (interactive)
+                        (ess-font-lock-toggle-keyword ',(car el)))
+                      :style toggle
+                      :enable t
+                      :selected ,(cdr el)])
+                  (cond ((eq major-mode 'ess-mode)
+                         (symbol-value ess-font-lock-keywords))
+                        ((eq major-mode 'inferior-ess-mode)
+                         (symbol-value inferior-ess-font-lock-keywords))))
+          (list "-----"
+                ["Save to custom" (lambda () (interactive)
+                                    (let ((kwd (if (eq major-mode 'ess-mode)
+                                                   ess-font-lock-keywords
+                                                 inferior-ess-font-lock-keywords)))
+                                      (customize-save-variable kwd (symbol-value kwd)))) t])))
+
+
+
+(defun ess--generate-eval-visibly-submenu (menu)
+  '(["yes" (lambda () (interactive) (setq ess-eval-visibly t))
+     :style radio :enable t :selected (eq ess-eval-visibly t)]
+    ["nowait" (lambda () (interactive) (setq ess-eval-visibly 'nowait))
+     :style radio :enable t :selected (eq ess-eval-visibly 'nowait) ]
+    ["no" (lambda () (interactive) (setq ess-eval-visibly nil))
+     :style radio :enable t :selected (eq ess-eval-visibly nil) ]))
+
 
 (defun ess-quote-special-chars (string)
   (replace-regexp-in-string
@@ -66,13 +168,16 @@ for a better but slower version."
  If VERBOSE   is non-nil, (message ..) about replacements."
   (let ((case-fold-search (and case-fold-search
                                (not fixedcase))); t  <==> ignore case in search
-        (pl) (p))
-    (while (setq p (re-search-forward regexp nil t))
+        (ppt (point)); previous point
+        (p))
+    (while (and (setq p (re-search-forward regexp nil t))
+                (< ppt p))
+      (setq ppt p)
       (cond ((not (ess-inside-string-or-comment-p (1- p)))
              (if verbose
                  (let ((beg (match-beginning 0)))
-                   (message "(beg,p)= (%d,%d) = %s"
-                            beg p (buffer-substring beg p) )))
+                   (message "buffer in (match-beg.,p)=(%d,%d) is '%s'"
+                            beg p (buffer-substring beg p))))
              (replace-match to-string fixedcase literal)
              ;;or (if verbose (setq pl (append pl (list p))))
              )))
@@ -414,21 +519,21 @@ Search for the executables in ESS-EXEC-DIR (which defaults to
 ;; Functions and commands to uniquify lists or buffer text (cf. sort).
 ;; 23-Apr-1994|1.00|~/packages/unique.el.Z|
 ;;
-;; MM: renamed from 'unique' to
-(defun ess-unique (list predicate)
+;; MM: renamed from 'unique' to 'ess-unique', then
+(defun ess-uniq (list predicate)
   "Uniquify LIST, stably, deleting elements using PREDICATE.
 Return the list with subsequent duplicate items removed by side effects.
 PREDICATE is called with an element of LIST and a list of elements from LIST,
 and should return the list of elements with occurrences of the element removed.
-This function will work even if LIST is unsorted.  See also `uniq'."
+This function will work even if LIST is unsorted.  See also `ess-uniq-list'."
   (let ((list list))
     (while list
       (setq list (setcdr list (funcall predicate (car list) (cdr list))))))
   list)
 
 (defun ess-uniq-list (items)
-  "Delete all duplicate entries in ITEMS list, calling `ess-unique'."
-  (ess-unique items 'delete))
+  "Delete all duplicate entries in ITEMS list, calling `ess-uniq'."
+  (ess-uniq items 'delete))
 
 (defun ess-drop-non-directories (file-strings)
   "Drop all entries that do not \"look like\" directories."
@@ -662,14 +767,382 @@ Copied almost verbatim from gnus-utils.el (but with test for mac added)."
   "*If a number, then return that number, otherwise return 0."
   (or (and (numberp arg) arg) 0))
 
-(defun ess-change-directory (path)
-  "Set the current working directory to PATH for both *R* and Emacs."
-  (interactive "DDirectory to change to: ")
 
-  (when (file-exists-p path)
-    (ess-command (concat "setwd(\"" path "\")\n"))
-    ;; use file-name-as-directory to ensure it has trailing /
-    (setq default-directory (file-name-as-directory path))))
+ ; Timer management
+
+(defcustom ess-idle-timer-interval 1
+  "Number of idle seconds to wait before running function in
+  `ess-idle-timer-functions'."
+  :group 'ess)
+
+(defvar ess-idle-timer-functions nil
+  "A list of functions to run each `ess-idle-timer-interval' idle seconds.
+
+If your function calls the process, you better use
+`ess-when-new-input' to wrap your call. If you call the
+subprocess please respect `ess-can-eval-in-background' variable.
+
+These functions are run with `run-hooks'. Use `add-hook' to add
+symbols to this variable.
+
+Most likely you will need a local hook. Then you should specify
+the LOCAL argument to `add-hook' and initialise it in
+`ess-mode-hook' or `ess-post-run-hook', or one of the more
+specialised hooks `ess-R-post-run-hook',`ess-stata-post-run-hook'
+etc.
+")
+
+(defun ess--idle-timer-function nil
+  "Internal function executed by `ess--idle-timer'"
+  ;; (while-no-input
+  (run-hooks 'ess-idle-timer-functions))
+
+(require 'timer)
+(defvar ess--idle-timer
+  (run-with-idle-timer ess-idle-timer-interval 'repeat 'ess--idle-timer-function)
+  "Timer used to run `ess-idle-timer-functions'.")
+
+(defmacro ess-when-new-input (time-var &rest body)
+  "BODY is evaluate only if the value of procss variable TIME-VAR
+is bigger than the time of the last user input (stored in
+'last-eval' process variable). TIME-VAR is the name of the
+process variable which holds the access time. See the code for
+`ess-synchronize-dirs' and `ess-cache-search-list'.
+
+Returns nil when no current process, or process is busy, or
+time-var > last-eval. Otherwise, execute BODY and return the last
+value.
+
+If BODY is executed, set process variable TIME-VAR
+to (current-time).
+
+Variable  *proc*  is bound  to  the  current process  during  the
+evaluation of BODY.
+
+Should be used in `ess-idle-timer-functions' which call the
+process to avoid excessive requests.
+"
+  (declare (indent 1))
+  `(with-ess-process-buffer 'no-error
+     (let ((le (process-get *proc* 'last-eval))
+           (tv (process-get *proc* ',time-var)))
+       (when (and (or (null tv) (null le) (time-less-p tv le))
+                  (not (process-get *proc* 'busy)))
+         (let ((out (progn ,@body)))
+           (process-put *proc* ',time-var (current-time))
+           out)))))
+
+
+(defmacro ess--execute-electric-command (map &optional prompt wait exit-form &rest args)
+  "Execute single-key comands defined in MAP till a key is pressed which is not part of map.
+
+Return the value of the lastly executed command.
+
+Single-key input commands are those that once executed do not
+requre the prefix command for subsequent invocation.
+
+PROMPT is passed to `read-event'.
+
+If WAIT is t, wait for next input and ignore the keystroke which
+triggered the command.
+
+Each command in map should accept one at least one argument, the
+most recent event (as read by `read-event'). ARGS are the
+supplementary arguments passed to the commands.
+
+EXIT-FORM should be supplied for a more refined control of the
+read-even loop. The loop is exited when EXIT-FORM evaluates to
+t. See examples in the tracebug code.
+"
+  ;;VS[09-06-2013]: check: it seems that set-temporary-overlay-map is designed
+  ;;for this type of things; see also repeat.el package.
+  `(let* ((ev last-command-event)
+          (command (lookup-key ,map (vector ev)))
+          out exit )
+     (if (not (or ,wait command))
+         (message "%s is undefined" (key-description (this-command-keys)))
+       (unless ,wait
+         (setq out (and command (funcall command ev ,@args))))
+       (while (and (not exit)
+                   (setq command
+                         (lookup-key ,map
+                                     (vector (setq ev (read-event ,prompt))))))
+         (setq out (funcall command ev ,@args))
+         (sleep-for .01)
+         (setq exit ,exit-form))
+       (unless exit ;; push only if an event triggered the exit
+         (push ev unread-command-events))
+       out)))
+
+(defmacro ess-execute-dialect-specific (command &optional prompt &rest args)
+  "Execute dialect specific command.
+
+-- If command is not defined issue warning 'Not available for dialect X'
+-- if a function, execute it with ARGS
+-- If a string starting with 'http' or 'www', browse with `browse-url',
+   otherwise execute the command in inferior process.
+
+-- If a string, interpret as a command to subprocess, and
+   substitute ARGS with `(format ,command ,@args).
+
+When PROMPT is non-nil ask the user for a string value and
+prepend the response to ARGS.
+
+If prompt is a string just pass it to `read-string'. If a list, pass it
+to `ess-completing-read'.
+"
+  `(if (null ,command)
+       (message "Sorry, not implemented for dialect %s" ess-dialect)
+     (let* ((com  (if (symbolp ,command)
+                     (symbol-function ,command)
+                   ,command))
+            (prompt ',prompt)
+            (resp (and prompt
+                       (if (stringp  prompt)
+                           (read-string  prompt)
+                         (apply 'ess-completing-read prompt))))
+            (args (append (list resp) ',args)))
+       (cond ((functionp com)
+              (apply com args))
+             ((and (stringp com)
+                   (string-match "^\\(http\\|www\\)" com))
+              (setq com (apply 'format com args))
+              (require 'browse-url)
+              (browse-url com))
+             ((stringp com)
+              (unless (string-match "\n$" com)
+                (setq com (concat com "\n")))
+              (setq com (apply 'format com args))
+              (ess-eval-linewise com))
+             (t
+              (error "Argument COMMAND must be either a function or a string"))))))
+
+
+
+;; SJE: 2009-01-30 -- this contribution from
+;; Erik Iverson <iverson@biostat.wisc.edu>
+
+(defun ess-tooltip-show-at-point (text xo yo)
+  "Show a tooltip displaying 'text' at (around) point, xo and yo are x-
+and y-offsets for the toolbar from point."
+  (let (
+        (fx (frame-parameter nil 'left))
+        (fy (frame-parameter nil 'top))
+        (fw (frame-pixel-width))
+        (fh (frame-pixel-height))
+        frame-left frame-top my-x-offset my-y-offset)
+
+    ;; The following comment was found before code looking much like that
+    ;; of frame-left and frame-top below in the file
+    ;; tooltip-help.el. I include it here for acknowledgement, and I did observe
+    ;; the same behavior with the Emacs window maximized under Windows XP.
+
+    ;; -----original comment--------
+    ;; handles the case where (frame-parameter nil 'top) or
+    ;; (frame-parameter nil 'left) return something like (+ -4).
+    ;; This was the case where e.g. Emacs window is maximized, at
+    ;; least on Windows XP. The handling code is "shamelessly
+    ;; stolen" from cedet/speedbar/dframe.el
+    ;; (contributed by Andrey Grigoriev)
+
+    (setq frame-left (if (not (consp fx))
+                         fx
+                       (if (eq (car fx) '-)
+                           (- (x-display-pixel-width) (car (cdr fx)) fw)
+                         (car (cdr fx)))))
+
+    (setq frame-top (if (not (consp fy))
+                        fy
+                      (if (eq (car fy) '-)
+                          (- (x-display-pixel-height) (car (cdr fy)) fh)
+                        (car (cdr fy)))))
+
+    ;; calculate the offset from point, use xo and yo to adjust to preference
+    (setq my-x-offset (+ (car(window-inside-pixel-edges))
+                         (car(posn-x-y (posn-at-point)))
+                         frame-left xo))
+
+    (setq my-y-offset (+ (cadr(window-inside-pixel-edges))
+                         (cdr(posn-x-y (posn-at-point)))
+                         frame-top yo))
+
+    (let ((tooltip-frame-parameters
+           (cons (cons 'top my-y-offset)
+                 (cons (cons 'left my-x-offset)
+                       tooltip-frame-parameters))))
+      (tooltip-show text))
+    ))
+
+
+;; (defun ess-tooltip-show-at-point (text xo yo)
+;;   (with-no-warnings
+;;     (pos-tip-show text
+;;                   'popup-tip-face
+;;                   (point)
+;;                   nil tooltip-hide-delay
+;;                   popup-tip-max-width
+;;                   nil xo yo)))
+
+
+(defvar ess-build-tags-command nil
+  "Command passed to generate tags.
+
+If nil, `ess-build-tags-for-directory' uses the mode's imenu
+regexpresion. Othersiwe, it should be a string with two %s
+formats: one for directory and another for the output file.")
+
+
+(defun ess-build-tags-for-directory (dir tagfile)
+  "Ask for directory and tag file and build tags for current dialect.
+
+If the current language defines `ess-build-tags-command' use it
+and ask the subprocess to build the tags. Otherwise use imenu
+regexp and call find .. | etags .. in a shell command. You must
+have 'find' and 'etags' programs installed.
+
+Use M-. to navigate to a tag. M-x `visit-tags-table' to
+append/replace the currently used tag table.
+
+If prefix is given, force tag generation based on imenu. Might be
+useful when different language files are also present in the
+directory (.cpp, .c etc)."
+  (interactive "DDirectory to tag:
+GTags file (default TAGS): ")
+  (when (or (eq (length (file-name-nondirectory tagfile)) 0)
+            (file-directory-p tagfile))
+    (setq tagfile (concat (file-name-as-directory tagfile) "TAGS")))
+  ;; emacs find-tags doesn't play well with remote TAG files :(
+  (when (file-remote-p tagfile)
+    (require 'tramp)
+    (setq tagfile (with-parsed-tramp-file-name tagfile foo foo-localname)))
+  (when (file-remote-p dir)
+    (setq dir (with-parsed-tramp-file-name dir foo foo-localname)))
+  (if (and ess-build-tags-command (null current-prefix-arg))
+      (ess-eval-linewise (format ess-build-tags-command dir tagfile))
+    ;; else generate from imenu
+    (unless (or imenu-generic-expression ess-imenu-generic-expression) ;; need both!!
+      (error "No ess-tag-command found, and no imenu-generic-expression defined"))
+    (let* ((find-cmd
+            (format "find %s -type f -size 1M \\( -regex \".*\\.\\(cpp\\|jl\\|[RsrSch]\\(nw\\)?\\)$\" \\)" dir))
+           (regs (delq nil (mapcar (lambda (l)
+                                     (if (string-match "'" (cadr l))
+                                         nil ;; remove for time being
+                                       (format "/%s/\\%d/"
+                                               (replace-regexp-in-string "/" "\\/" (nth 1 l) t)
+                                               (nth 2 l))))
+                                   imenu-generic-expression)))
+           (tags-cmd (format "etags -o %s --regex='%s' -" tagfile
+                             (mapconcat 'identity regs "' --regex='"))))
+      (message "Building tags: %s" tagfile)
+      ;; (dbg (format "%s | %s" find-cmd tags-cmd))
+      (when (= 0 (shell-command (format "%s | %s" find-cmd tags-cmd)))
+        (message "Building tags .. ok!")))))
+
+
+(defun ess-function-arguments (funname &optional proc)
+  "Get FUNARGS from cache or ask the process for it.
+
+Return FUNARGS - a list with the first element being a
+cons (package_name . time_stamp_of_request), second element is a
+string giving arguments of the function as they appear in
+documentation, third element is a list of arguments of all
+methods.
+
+If package_name is nil, and time_stamp is less recent than the
+time of the last user interaction to the process, then update the
+entry.
+
+Package_name is also nil when funname was not found, or funname
+is a special name that contains :,$ or @.
+
+If PROC is given, it should be an ESS process which should be
+queried for arguments.
+"
+
+  (when (and funname ;; usually returned by ess--funname.start (might be nil)
+             (or proc (ess-process-live-p)))
+    (let* ((proc (or proc (get-process ess-local-process-name)))
+           (args (gethash funname (process-get proc 'funargs-cache)))
+           (pack (caar args))
+           (ts   (cdar args)))
+      (when (and args
+                 (and (time-less-p ts (process-get proc 'last-eval))
+                      (or (null pack)
+                          (equal pack ""))))
+        ;; reset cache
+        (setq args nil))
+      (or args
+          (cadr (assoc funname (process-get proc 'funargs-pre-cache)))
+          (with-current-buffer (ess-command (format ess-funargs-command
+                                                    (ess-quote-special-chars funname))
+                                            nil nil nil nil proc)
+            (goto-char (point-min))
+            (when (re-search-forward "(list" nil t)
+              (goto-char (match-beginning 0))
+              (setq args (ignore-errors (eval (read (current-buffer)))))
+              (if args
+                  (setcar args (cons (car args) (current-time)))))
+            ;; push even if nil
+            (puthash (substring-no-properties funname) args (process-get proc 'funargs-cache))
+            )))))
+
+(defun ess-symbol-start ()
+  "Get initial position for objects completion."
+  (let ((beg (car (bounds-of-thing-at-point 'symbol))))
+    (when (and beg (not (save-excursion (goto-char beg)
+                                        (looking-at "/\\|.[0-9]"))))
+      beg)))
+
+(defvar ess--funname.start nil)
+
+(defun ess--funname.start (&optional look-back)
+  "If inside a function call, return (FUNNAMME . START) where
+FUNNAME is a function name found before ( and START is where
+FUNNAME starts.
+
+LOOK-BACK is a number of characters to look back; defaults to
+2000. As the search might get quite slow for files with thousands
+of lines.
+
+Also store the cons in 'ess--funname.start for potential use
+later."
+  (save-excursion
+    (save-restriction
+     (let* ((proc (get-buffer-process (current-buffer)))
+            (mark (and proc (process-mark proc))))
+
+       (if (and mark (>= (point) mark))
+           (narrow-to-region mark (point)))
+
+       (and ess-noweb-mode
+            (ess-noweb-narrow-to-chunk))
+
+       (unless (ess-inside-string-p)
+         (setq ess--funname.start
+               (condition-case nil ;; check if it is inside a functon
+                   (progn
+                     ;; for the sake of big buffers, look only 1000 chars back
+                     (narrow-to-region (max (point-min) (- (point) 1000)) (point))
+                     (up-list -1)
+                     (while (not (looking-at "("))
+                       (up-list -1))
+                     (let ((funname (symbol-name (symbol-at-point))))
+                       (when (and funname
+                                  (not (member funname ess-S-non-functions)))
+                         (cons funname (- (point) (length funname))))
+                       ))
+                 (error nil))
+               ))))))
+
+(defun ess--inject-code-from-file (file)
+  ;; this is different from ess-load-file
+  (let ((content (with-temp-buffer
+                   (insert-file-contents file)
+                   (buffer-string))))
+    (when (string= ess-dialect "R")
+      ;; don't detect intermediate prompts
+      (setq content (concat "{" content "}\n")))
+    (ess-command content)))
 
 (provide 'ess-utils)
 

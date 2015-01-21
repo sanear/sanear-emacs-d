@@ -41,14 +41,15 @@
 (add-to-list 'load-path "~/.emacs.d/plugins/pig-mode")
 (require 'pig-mode)
 
-;; YAML moe
+;; YAML mode
+(add-to-list 'load-path "~/.emacs.d/plugins/yaml-mode")
 (require 'yaml-mode)
 (add-hook 'yaml-mode-hook
     (lambda ()
         (define-key yaml-mode-map "\C-m" 'newline-and-indent)))
 
 ;; Using the ESS (emacs speaks statistics) package
-(add-to-list 'load-path "~/.emacs.d/plugins/ess/lisp")
+(add-to-list 'load-path "~/.emacs.d/plugins/ESS/lisp")
 (require 'ess-site)
 
 ;; Other ESS bits
@@ -59,7 +60,8 @@
 (define-key ess-mode-map [(super .)] "%>%")
 
 ;; Python stuff
-(add-to-list 'load-path "~/.emacs.d/plugins/python-mode.el-6.0.10/")
+(setq py-install-directory "~/.emacs.d/plugins/python-mode/")
+(add-to-list 'load-path "~/.emacs.d/plugins/python-mode/")
 (require 'python-mode)
 (autoload 'python-mode "python-mode" "Python Mode." t)
 (add-to-list 'auto-mode-alist '("\\.py\\'" . python-mode))

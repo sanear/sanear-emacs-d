@@ -1,6 +1,6 @@
 ;;; ess-sas-l.el --- SAS customization
 
-;; Copyright (C) 1997--2009 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2009 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Authors: Richard M. Heiberger
@@ -23,9 +23,9 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
+
 
 ;;; Commentary:
 
@@ -96,6 +96,50 @@ the mode line."
   (force-mode-line-update)
   (setq mode-line-process
         '(" [" ess-local-process-name "]")))
+        
+(defcustom ess-automatic-sas-log-or-lst-mode t
+  "Automatically turn on `SAS-log-mode' and `SAS-listing-mode' when enabled."
+  :type 'boolean
+  :group 'ess-sas)
+
+(defun ess-SAS-log-mode-p ()
+  "Return t when when a SAS log file is detected.
+A SAS log is defined as having:
+
+1. The first line matches \"^1[ \t]*The SAS System\"
+2. The file name ends in .log.
+"
+  (and ess-automatic-sas-log-or-lst-mode
+       (save-excursion
+         (goto-char (point-min))
+         (looking-at "1[ \t]*The SAS System"))
+       (if (buffer-file-name)
+           (string-match ".log$" (buffer-file-name))
+         t)))
+
+(defun ess-SAS-listing-mode-p ()
+  "Return t when SAS listing file is detected.
+A .lst file is a SAS listing file when:
+
+1. The file name ends in .lst
+2. The corresponding log file exists and is a SAS log file.
+"
+  (when ess-automatic-sas-log-or-lst-mode
+    (let* ((bfn (buffer-file-name))
+           (log (and bfn
+                     (string-match-p "\\.lst$" bfn)
+                     (replace-regexp-in-string "\\.lst$" ".log" bfn))))
+      (and log
+           (file-exists-p log)
+           (with-temp-buffer
+             (insert-file-contents log nil 0 200)
+             (goto-char (point-min))
+             (looking-at "1[ \t]*The SAS System"))))))
+
+(add-to-list 'magic-mode-alist
+             '(ess-SAS-log-mode-p . SAS-log-mode))
+(add-to-list 'magic-mode-alist
+             '(ess-SAS-listing-mode-p . SAS-listing-mode))
 
 (defun SAS-log-mode ()
   "`ess-transcript-mode' for SAS."
@@ -103,7 +147,7 @@ the mode line."
   (SAS-mode)
   (setq mode-name "ESS[LOG]")
   (ess-transcript-minor-mode 1)
-  (toggle-read-only t)) ;; to protect the buffer.
+  (setq buffer-read-only t)) ;; to protect the buffer.
 
 (defun SAS-listing-mode()
   "Fundamental mode with `ess-listing-minor-mode' and read-only."
@@ -112,7 +156,7 @@ the mode line."
   (setq mode-name "ESS[LST]")
   (ess-listing-minor-mode 1)
   (use-local-map sas-mode-local-map)
-  (toggle-read-only t)) ;; to protect the buffer.
+  (setq buffer-read-only t)) ;; to protect the buffer.
 
 (fset 'sas-log-mode        'SAS-log-mode)
 (fset 'SAS-transcript-mode 'SAS-log-mode)
@@ -250,7 +294,7 @@ number."
 ;;; ...
 
 
-(defvar SAS-mode-font-lock-keywords
+(defvar SAS-mode-font-lock-defaults
   (if ess-sas-run-regexp-opt
       (list
        ;; .log NOTE: messages
@@ -296,8 +340,8 @@ number."
              font-lock-comment-face)
        (cons "For further information on ANNOTATE macros, enter,"
              font-lock-comment-face)
-       (cons "^SAS/STAT 9.3_M1, SAS/ETS 9.3_M1, SAS/OR 9.3_M1"
-             font-lock-comment-face)
+       ;; (cons "^SAS/STAT 9.3_M1, SAS/ETS 9.3_M1, SAS/OR 9.3_M1"
+       ;;       font-lock-comment-face)
        (cons "\\(or \\)?%HELPANO.*$"
              font-lock-comment-face)
        (cons "^Local Variables:$"                  font-lock-comment-face)
@@ -415,7 +459,7 @@ number."
                                    "options"
                                    "plot" "pmenu" "print" "printto"
                                    "rank" "registry" "report"
-                                   "sgpanel" "sgplot" "sgscatter" "sort" "sql" "standard" "summary"
+                                   "setinit" "sgdesign" "sgpanel" "sgplot" "sgrender" "sgscatter" "sort" "sql" "standard" "summary"
                                    "tabulate" "template" "timeplot" "transpose" "trantab"
                                    "univariate"
 
@@ -763,7 +807,7 @@ number."
     (adaptive-fill-mode           . nil)
     (indent-line-function         . 'sas-indent-line)
     ;;(indent-region-function       . 'sas-indent-region)
-    (require-final-newline        . t)
+    (require-final-newline        . mode-require-final-newline)
     (comment-start                . "/*")
     (comment-start-skip           . "/[*]")
     (comment-end                  . "*/")
@@ -777,8 +821,9 @@ number."
     (tab-stop-list                . ess-sas-tab-stop-list)
     (ess-mode-syntax-table        . SAS-syntax-table)
     (font-lock-keywords-case-fold-search . t)
-    (font-lock-defaults           . '(SAS-mode-font-lock-keywords)))
+    (font-lock-defaults           . '(SAS-mode-font-lock-defaults)))
   "General options for editing SAS source files.")
+
 
 (defun beginning-of-sas-statement (arg &optional comment-start)
   "Move point to beginning of current sas statement."
@@ -810,7 +855,7 @@ number."
                (back-to-indentation)
                (or (bobp)
                    (looking-at
-                    "data[ ;]\\|proc[ ;]\\|run[ ;]\\|endsas[ ;]\\|g?options[ ;]\\|%macro[ ;]\\|%mend[ ;]")))
+                    "data[ ;]\\|proc[ ;]\\|run[ ;]\\|quit[ ;]\\|endsas[ ;]\\|g?options[ ;]\\|%macro[ ;]\\|%mend[ ;]")))
              ;;  Case where current statement is DATA, PROC, etc...
              (setq prev-end (point))
              (goto-char (point-min))
@@ -839,7 +884,7 @@ number."
                 ((save-excursion;; added 4/28/94 to properly check
                    (if (bobp) () (backward-char 1));; for end of comment
                    (setq prev-end (point))
-                   (looking-at "*/"));;  improved 1/31/95
+                   (looking-at "\\*/"));;  improved 1/31/95
                  (save-excursion
                    (search-backward "*/"
                                     (point-min) 1 1); comment start is first /*
@@ -851,7 +896,8 @@ number."
                          (if (bobp) 0
                            (if (looking-at ";")
                                (sas-next-statement-indentation)
-                             (+ (current-indentation) sas-indent-width))))))
+                             ;;(+ (current-indentation) sas-indent-width)
+                             (current-indentation))))))
 
                 ;; added 6/27/94 to leave "* ;" comments alone
                 ((save-excursion
@@ -864,6 +910,10 @@ number."
                    (beginning-of-sas-statement 1)
                    (bobp));; added 4/13/94
                  (setq indent sas-indent-width));; so the first line works
+                ((save-excursion
+                   (beginning-of-sas-statement 2)
+                   (looking-at "cards4?;\\|datalines4?;\\|lines4?;"))
+                 (setq indent (current-indentation))) ; So cards keep indentation.
                 (t
                  (if (progn
                        (save-excursion
@@ -935,7 +985,9 @@ This will (hopefully) be fixed in later versions."
           (beginning-of-sas-statement 1 t))
         (if (or
              (looking-at
-              "data[ \n\t;]\\|proc[ \n\t]\\|%?do[ \n\t;]\\|%macro[ \n\t]\\|/\\*")
+              (concat "data[ \n\t;]\\|"
+                      (regexp-opt '("cards;" "cards4;" "datalines;" "datalines4;" "lines;" "lines4;"))
+                      "\\|proc[ \n\t]\\|%?do[ \n\t;]\\|%macro[ \n\t]\\|/\\*"))
              (save-excursion
                (re-search-forward
                 "\\b%?then\\>[ \n\t]*\\b%?do\\>\\|\\b%?else\\>[ \n\t]*\\b%?do\\>"
@@ -991,7 +1043,7 @@ opening /* appears.  returns 0 otherwise."
 Proc Lifetest.  Operates on current region.  A major space saver if there is
 heavy censoring."
   (interactive)
-  (if buffer-read-only (toggle-read-only))
+  (if buffer-read-only (setq buffer-read-only nil))
   (goto-char (point-min))
   (while (re-search-forward "^.*[ ]+[.][ ]+[.][ ]+[.][ ]+.*$" nil t)
     (replace-match "" nil nil)))
@@ -1491,9 +1543,8 @@ page ;
 ;;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;;;    GNU General Public License for more details.
 ;;;
-;;;    You should have received a copy of the GNU General Public License
-;;;    along with this program; if not, write to the Free Software
-;;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;;; A copy of the GNU General Public License is available at
+;;; http://www.r-project.org/Licenses/
 ;;;
 ;;;  Author:   Tom Cook
 ;;;            Dept. of Biostatistics
@@ -1555,7 +1606,7 @@ page ;
   (setq major-mode 'sas-dir-mode)
   (setq mode-name "SAS")
   (setq sas-directory-name (expand-file-name default-directory))
-  (toggle-read-only 1))
+  (setq buffer-read-only 1))
 
 
 ;;(defun sas-make-library (directory &optional update)
@@ -1827,6 +1878,14 @@ whose beginning matches the regexp `page-delimiter'."
            (setq str (concat str " " (buffer-substring (match-beginning 2)
                                                        (match-end 2)))))
          str)))
+
+
+(defun ess-imenu-SAS (&optional arg)
+  "SAS language Imenu support for ESS."
+  (interactive)
+  (setq imenu-generic-expression
+        '( (nil "[ \t\n=]\\([a-zA-Z_][a-zA-Z_0-9]*[.][a-zA-Z_][a-zA-Z_0-9]*\\)[ ,()\t\n;]" 1)))
+  (imenu-add-to-menubar "SAS Datasets"))
 
 ;;(defun sas-revert-library ()
 ;;  "Update current library."

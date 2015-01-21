@@ -1,7 +1,7 @@
 ;;; ess-s3-d.el ---  S 3 (AT&T version) customization
 
 ;; Copyright (C) 1997 A. J. Rossini
-;; Copyright (C) 1998--2005 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1998--2005 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: A.J. Rossini <rossini@stat.sc.edu>
@@ -22,9 +22,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -73,7 +72,7 @@
   (interactive)
   (setq ess-customize-alist S3-customize-alist)
   (ess-mode S3-customize-alist proc-name)
-  (if ess-imenu-use-S (ess-imenu-R)))
+  (if ess-imenu-use-S (ess-imenu-S)))
 
 
  ; Provide package

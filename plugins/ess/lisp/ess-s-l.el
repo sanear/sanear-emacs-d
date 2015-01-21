@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 1989-1997 D. Bates, Kademan, Ritter, D.M. Smith, K. Hornik,
 ;;      R.M. Heiberger, M. Maechler, and A.J. Rossini.
-;; Copyright (C) 1998-2005 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1998-2005 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: A.J. Rossini <rossini@biostat.washington.edu>
@@ -21,9 +21,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -37,43 +36,41 @@
 
  ; Configuration variables
 
-(defvar S-syntax-table nil "Syntax table for S code.")
-(if S-syntax-table
-    nil
-  (setq S-syntax-table (make-syntax-table))
-  (modify-syntax-entry ?\\ "\\" S-syntax-table)
-  (modify-syntax-entry ?+  "."  S-syntax-table)
-  (modify-syntax-entry ?-  "."  S-syntax-table)
-  (modify-syntax-entry ?=  "."  S-syntax-table)
-  (modify-syntax-entry ?%  "."  S-syntax-table)
-  (modify-syntax-entry ?<  "."  S-syntax-table)
-  (modify-syntax-entry ?>  "."  S-syntax-table)
-  (modify-syntax-entry ?&  "."  S-syntax-table)
-  (modify-syntax-entry ?|  "."  S-syntax-table)
-  (modify-syntax-entry ?\' "\"" S-syntax-table)
-  (modify-syntax-entry ?\" "\"" S-syntax-table)
-  (modify-syntax-entry ?#  "<"  S-syntax-table) ; open comment
-  (modify-syntax-entry ?\n ">"  S-syntax-table) ; close comment
-  ;;(modify-syntax-entry ?.  "w"  S-syntax-table) ; "." used in S obj names
-  (modify-syntax-entry ?.  "_"  S-syntax-table) ; see above/below,
+(defvar S-syntax-table
+  (let ((S-syntax-table (make-syntax-table)))
+    (modify-syntax-entry ?\\ "\\" S-syntax-table)
+    (modify-syntax-entry ?+  "."  S-syntax-table)
+    (modify-syntax-entry ?-  "."  S-syntax-table)
+    (modify-syntax-entry ?=  "."  S-syntax-table)
+    (modify-syntax-entry ?%  "."  S-syntax-table)
+    (modify-syntax-entry ?<  "."  S-syntax-table)
+    (modify-syntax-entry ?>  "."  S-syntax-table)
+    (modify-syntax-entry ?&  "."  S-syntax-table)
+    (modify-syntax-entry ?|  "."  S-syntax-table)
+    (modify-syntax-entry ?\' "\"" S-syntax-table)
+    (modify-syntax-entry ?\" "\"" S-syntax-table)
+    (modify-syntax-entry ?#  "<"  S-syntax-table) ; open comment
+    (modify-syntax-entry ?\n ">"  S-syntax-table) ; close comment
+    ;;(modify-syntax-entry ?.  "w"  S-syntax-table) ; "." used in S obj names
+    (modify-syntax-entry ?.  "_"  S-syntax-table) ; see above/below,
                                         ; plus consider separation.
-  (modify-syntax-entry ?$  "_"  S-syntax-table); foo$comp = 1 symbol(completion)
-  (modify-syntax-entry ?@  "_"  S-syntax-table); foo@slot = 1 symbol(completion)
-  (modify-syntax-entry ?_  "."  S-syntax-table)
-  (modify-syntax-entry ?*  "."  S-syntax-table)
-  (modify-syntax-entry ?<  "."  S-syntax-table)
-  (modify-syntax-entry ?>  "."  S-syntax-table)
-  (modify-syntax-entry ?/  "."  S-syntax-table))
+    (modify-syntax-entry ?$  "_"  S-syntax-table); foo$comp = 1 symbol(completion)
+    (modify-syntax-entry ?@  "_"  S-syntax-table); foo@slot = 1 symbol(completion)
+    (modify-syntax-entry ?_  "_"  S-syntax-table)
+    (modify-syntax-entry ?:  "_"  S-syntax-table)
+    (modify-syntax-entry ?*  "."  S-syntax-table)
+    (modify-syntax-entry ?<  "."  S-syntax-table)
+    (modify-syntax-entry ?>  "."  S-syntax-table)
+    (modify-syntax-entry ?/  "."  S-syntax-table)
+    S-syntax-table)
+  "Syntax table for S code."
+  )
 
-(defvar R-editing-alist
+(defvar S-editing-alist
   '((paragraph-start              . (concat "\\s-*$\\|" page-delimiter))
     (paragraph-separate           . (concat "\\s-*$\\|" page-delimiter))
     (paragraph-ignore-fill-prefix . t)
-    (require-final-newline        . t)
-    (comment-start                . "#")
-    (comment-add                  . 1)
-    (comment-start-skip           . "#+ *")
-    (comment-column               . 40)
+    (require-final-newline        . mode-require-final-newline)
     ;;(comment-indent-function  . 'S-comment-indent)
     ;;(ess-comment-indent           . 'S-comment-indent)
     ;;(ess-indent-line                      . 'S-indent-line)
@@ -81,50 +78,57 @@
     (indent-line-function         . 'ess-indent-line)
     (parse-sexp-ignore-comments   . t)
     (ess-style                    . ess-default-style)
-    (ess-local-process-name       . nil)
     ;;(ess-keep-dump-files          . 'ask)
     (ess-mode-syntax-table        . S-syntax-table)
     ;; For Changelog add, require ' ' before <- : "attr<-" is a function name :
     (add-log-current-defun-header-regexp . "^\\(.+\\)\\s-+<-[ \t\n]*function")
-    (font-lock-defaults           . '(ess-R-mode-font-lock-keywords
+    (ess-font-lock-keywords       . 'ess-S-font-lock-keywords)
+    (ess-font-lock-defaults       . (ess--extract-default-fl-keywords ess-S-font-lock-keywords))
+    (font-lock-defaults           . '(ess-font-lock-defaults
                                       nil nil ((?\. . "w") (?\_ . "w"))))
     )
-  "General options for R source files.")
-
-(defvar S-editing-alist
-  ;; copy the R-list and modify :
-  (let ((S-alist (copy-alist R-editing-alist)))
-    (setcdr (assoc 'font-lock-defaults S-alist)
-            (quote '(ess-S-mode-font-lock-keywords nil nil ((?\. . "w")))))
-    ;;      ^^ extra quote is needed - why?
-    S-alist)
-  "General options for editing S and S+ source files.")
+  "General options for S and S+ source files.")
 
 (defvar inferior-S-language-start
   '(concat "options("
            "STERM='"    ess-STERM  "'"
-           ", str.dendrogram.last =\"'\""
+           ", str.dendrogram.last=\"'\""
            (if ess-editor (concat ", editor='" ess-editor "'"))
            (if ess-pager  (concat ", pager='"  ess-pager  "', help.pager='"  ess-pager  "'"))
+           ", show.error.locations=TRUE"
            ")")
   "S language expression for startup -- default for all S dialects.")
 
 (defconst S-common-cust-alist
-  `((ess-language                  . "S")
+  '((ess-language                  . "S")
     (inferior-ess-exit-command     . "q()\n")
     (inferior-ess-language-start   . (eval inferior-S-language-start))
     (comint-use-prompt-regexp      . t)  ;;use fields if nil
+    (comint-process-echoes	   . t)
     ;; these prompt are the same for all S-languages As long as custom prompt
     ;; ends in inferior-ess-primary-prompt everything should work as expected.
     (inferior-ess-primary-prompt   . "> ")
-    (inferior-ess-secondary-prompt . "+ ")
-    ;; inferior-ess-prompt is used by comint for navigation only if
-    ;; comint-use-prompt-regexp is t transcript-mode also relies on this regexp
+    ;; (inferior-ess-secondary-prompt . "[+:] ") ;; catch Selection: and alike
+    (inferior-ess-secondary-prompt . "+ ") ;; catch Selection: and alike
+    (comment-start                . "#")
+    (ess-imenu-generic-expression  . ess-imenu-S-generic-expression)
+    (comment-add                  . 1)
+    (comment-start-skip           . "#+ *")
+    (comment-use-syntax           . t)  ; see log for bug report 2013-06-07
+    (comment-column               . 40)
+    (ess-no-skip-regexp           . (concat "^ *@\\|" (default-value 'ess-no-skip-regexp)))
+    ;; inferior-ess-prompt is used by comint for navigation, only if
+    ;; comint-use-prompt-regexp is t; (transcript-mode also relies on this regexp)
     (inferior-ess-prompt           . inferior-S-prompt) ;customizable
-    (ess-get-help-topics-function  . 'ess-get-S-help-topics)
+    (ess-get-help-topics-function  . 'ess-get-S-help-topics-function)
+    (ess-getwd-command          . "getwd()\n")
+    (ess-setwd-command          . "setwd('%s')\n")
+    (ess-funargs-command        . ".ess_funargs(\"%s\")\n")
+    
+    (fill-nobreak-predicate     . 'ess-inside-string-p)
+    (normal-auto-fill-function  . 'ess-do-auto-fill)
     )
-  "S-language common settings for all <dialect>-customize-alist s"
-  )
+  "S-language common settings for all <dialect>-customize-alist s")
 
 (defconst S+common-cust-alist
   (append
@@ -141,7 +145,7 @@
      (ess-dump-filename-template . (ess-replace-regexp-in-string
                                     "S$" ess-suffix ; in the one from custom:
                                     ess-dump-filename-template-proto))
-
+     (ess-traceback-command     . "traceback()\n")
      (ess-mode-editing-alist    . S-editing-alist)
 
      (ess-dumped-missing-re
@@ -149,7 +153,8 @@
      (ess-syntax-error-re
       . "\\(Syntax error: .*\\) at line \\([0-9]*\\), file \\(.*\\)$")
      (inferior-ess-objects-command  . inferior-Splus-objects-command)
-     (inferior-ess-font-lock-keywords . inferior-ess-S-font-lock-keywords)
+     (ess-describe-object-at-point-commands . 'ess-S-describe-object-at-point-commands)
+     (inferior-ess-font-lock-keywords . 'inferior-S-font-lock-keywords)
      (ess-editor . S-editor)
      (ess-pager  . S-pager)
      )
@@ -216,6 +221,7 @@
   '((?a . "\\s *Arguments:")
     (?d . "\\s *Description:")
     (?D . "\\s *Details:")
+    (?t . "\\s *Details:")
     (?e . "\\s *Examples:")
     (?n . "\\s *Note:")
     (?r . "\\s *References:")
@@ -229,7 +235,7 @@
 (defconst ess-help-S+-sec-regex "^[A-Z. ---]+:$"
   "Reg(ular) Ex(pression) of section headers in help file.")
 
-(defconst ess-help-R-sec-regex "^[A-Z][a-z].+:$"
+(defconst ess-help-R-sec-regex "^[A-Z][A-Za-z].+:$"
   "Reg(ular) Ex(pression) of section headers in help file.")
 
 ;;; S-mode extras of Martin Maechler, Statistik, ETH Zurich.
@@ -484,8 +490,10 @@ unless prefix argument NO-FORCE-CURRENT is non-nil."
 ;;*;; S/R  Pretty-Editing
 
 (defun ess-fix-comments (&optional dont-query verbose)
-  "Fix ess-mode buffer so that single-line comments start with at least `##'."
+  "Fix ess-mode buffer so that single-line comments start with at least '##',
+and ensure space before subsequent text."
   (interactive "P")
+  (ess-replace-regexp-dump-to-src "#\\([A-Za-z0-9]\\)" "# \\1" nil verbose)
   (ess-replace-regexp-dump-to-src "^\\([ \t]*#\\)\\([^#]\\)"
                                   "\\1#\\2" dont-query verbose))
 
@@ -582,6 +590,9 @@ and one that is well formatted in emacs ess-mode."
   "Fix Miscellaneous S/R `ill-formation's from current \\[point].
  Particularly use \"<-\"and put spaces around operators."
   (interactive "d\nP"); Defaults: point and prefix (C-u)
+  ;; activate by (setq ess-verbose t)
+  (ess-if-verbose-write
+   (format "ess-fix-misc begin (from = %s, verbose = %s)\n" from verbose))
   (save-excursion
 
     (if (string= ess-dialect "R")
@@ -589,14 +600,21 @@ and one that is well formatted in emacs ess-mode."
           (require 'ess-r-d)
           (R-fix-T-F from (not verbose))))
 
+    ;; activate by (setq ess-verbose t)
+    (ess-if-verbose-write "ess-fix-misc: after fix-T-F\n");___D___
+
     ;; former C and matlab programmers leave trailing  ";" :
-    (goto-char from) (ess-rep-regexp "; *$" "" nil 'literal verbose)
+    ;; (goto-char from) (ess-rep-regexp "; *$" "" nil 'literal verbose)
+    ;; (ess-if-verbose-write "ess-fix-misc: after trailing ';'\n");___D___
     (goto-char from) (ess-rep-regexp ";\\( *\\)#" "\\1#" nil nil verbose)
+    (ess-if-verbose-write "ess-fix-misc: after ';' before #\n");___D___
 
     ;;from R 1.9.x "_" is valid in names; here assume no initial / trailing '_'
-    (goto-char from) (ess-rep-regexp " +_ *" " <- " nil 'literal verbose)
-    (goto-char from) (ess-rep-regexp   "_ +" " <- " nil 'literal verbose)
+    ;; BUG: The following changes "beta_ " or " _abc"
+    ;; (goto-char from) (ess-rep-regexp " +_ *" " <- " nil 'literal verbose)
+    ;; (goto-char from) (ess-rep-regexp   "_ +" " <- " nil 'literal verbose)
 
+    (ess-if-verbose-write "ess-fix-misc: before 'around \"<-\"' :\n");___D___
     ;; ensure space around  "<-"  ---- but only replace if necessary:
     (goto-char from)
     (ess-rep-regexp "\\([^< \t\n]\\)\\(<<?-\\)" "\\1 \\2" nil nil verbose)
@@ -610,6 +628,7 @@ and one that is well formatted in emacs ess-mode."
     (goto-char from)
     (ess-rep-regexp "\\(<=?\\)\\([^-<= \t\n]\\)" "\\1 \\2" nil nil t)
 
+    (ess-if-verbose-write "ess-fix-misc: before \"=\" \"==\" .. :\n");___D___
     ;; -- ensure space around "=", "==", "!=" :
     (goto-char from) ;; --> " ="
     (ess-rep-regexp "\\([^=!<> ]\\)\\([=!]?\\)=" "\\1 \\2=" nil nil verbose)
@@ -622,12 +641,17 @@ and one that is well formatted in emacs ess-mode."
     (ess-rep-regexp "\\([A-Za-z0-9()]\\)}" "\\1 }" 'fix nil verbose)
     (ess-space-around "else" from verbose)
 
+    (ess-if-verbose-write "ess-fix-misc: after \"{ ... }\" :\n");___D___
+    (goto-char from) ;; add a space inside "){"
+    (ess-rep-regexp "){" ") {" 'fix nil verbose)
+
     ;; add a newline and indent before a "}"
     ;; --- IFF there's NO "{" or "#" AND some NON-white text on the same line:
     ;;D (if verbose (message "\t R-fix-misc..: Hard.. '}'"))
     (goto-char from)
     (ess-rep-regexp "^\\([^#{\n]*[^#{ \t\n]+[ \t]*\\)}[ \t]*$"
                     "\\1\n}" 'fix nil verbose)
+    (ess-if-verbose-write "ess-fix-misc __end__\n");___D___
     ))
 
 ;; This is by Seth Falcon, modeled after ess-toggle-underscore (see below).
@@ -660,25 +684,38 @@ toggle between the new and the previous assignment."
         (if (not (and force current-is-S-assign))
             (setq ess-S-assign-key-last current-action))))))
 
-(defun ess-smart-underscore ()
-  "Smart \"_\" key: insert `ess-S-assign', unless in string/comment.
+(defvar polymode-mode)
+(defun ess-smart-S-assign ()
+  "Smart \\[ess-smart-S-assign] key: insert `ess-S-assign', unless in string/comment.
 If the underscore key is pressed a second time, the assignment
 operator is removed and replaced by the underscore.  `ess-S-assign',
 typically \" <- \", can be customized.  In ESS modes other than R/S,
-an underscore is always inserted. "
+the  underscore is always inserted. "
   (interactive)
   ;;(insert (if (ess-inside-string-or-comment-p (point)) "_" ess-S-assign))
-  (if (or
-       (ess-inside-string-or-comment-p (point))
-       (not (equal ess-language "S")))
-      (insert "_")
-    ;; else:
-    (ess-insert-S-assign)))
-
+  (save-restriction
+    (ignore-errors
+      (when (and (eq major-mode 'inferior-ess-mode)
+                 (> (point) (process-mark (get-buffer-process (current-buffer)))))
+        (narrow-to-region (process-mark (ess-get-process)) (point-max)))
+      (and ess-noweb-mode
+           (ess-noweb-in-code-chunk)
+           (ess-noweb-narrow-to-chunk))
+      (and (fboundp 'pm/narrow-to-span)
+           polymode-mode
+           (pm/narrow-to-span)))
+    (if (or
+         (ess-inside-string-or-comment-p (point))
+         (not (equal ess-language "S")))
+        (insert ess-smart-S-assign-key)
+      ;; else:
+      (ess-insert-S-assign))))
+(defalias 'ess-smart-underscore 'ess-smart-S-assign)
 
 (defun ess-insert-S-assign ()
   "Insert the assignment operator `ess-S-assign', unless it is already there.
-In that case, the it is removed and replaced by the underscore.
+In that case, the it is removed and replaced by
+  `ess-smart-S-assign-key', \\[ess-smart-S-assign-key].
   `ess-S-assign', typically \" <- \", can be customized."
   (interactive)
   ;; one keypress produces ess-S-assign; a second keypress will delete
@@ -694,33 +731,42 @@ In that case, the it is removed and replaced by the underscore.
         ;; If we are currently looking at ess-S-assign, replace it with _
         (progn
           (delete-char (- assign-len))
-          (insert "_"))
-      (delete-horizontal-space)
+          (insert ess-smart-S-assign-key))
+      (if (string= ess-smart-S-assign-key "_")
+          (delete-horizontal-space))
       (insert ess-S-assign))))
 
-(defun ess-toggle-underscore (force)
-  "Set the \"_\" (underscore) key to \\[ess-smart-underscore] or back to \"_\".
- Toggle the current definition, unless FORCE is non-nil, where
- \\[ess-smart-underscore] is set unconditionally.
+(defun ess-toggle-S-assign (force)
+  "Set the `ess-smart-S-assign-key' (by default \"_\"
+[underscore]) key to \\[ess-smart-S-assign] or back to
+`ess-smart-S-assign-key'.  Toggle the current definition, unless
+FORCE is non-nil, where \\[ess-smart-S-assign] is set
+unconditionally.
 
- Using \"C-q _\" will always just insert the underscore character."
+  If you as per default have `ess-smart-S-assign-key' set to
+  underscore, note that using \"C-q _\" will always just insert the
+  underscore character."
   (interactive "P")
-  (require 'ess-mode)
-  (require 'ess-inf)
-  (let ((current-key (lookup-key ess-mode-map "_")))
-    (if (and current-key
+  (let ((current-key (lookup-key ess-mode-map ess-smart-S-assign-key))
+        (default-key (lookup-key ess-mode-map "_"))
+        )
+    (if (and (or default-key current-key)
              ;; (stringp current-key) (string= current-key ess-S-assign)
              (not force))
         (progn
-          (define-key ess-mode-map          "_" nil); 'self-insert-command
-          (define-key inferior-ess-mode-map "_" nil))
+          (define-key ess-mode-map          "_" nil)
+          (define-key inferior-ess-mode-map "_" nil)
+          (define-key ess-mode-map          ess-smart-S-assign-key nil); 'self-insert-command
+          (define-key inferior-ess-mode-map ess-smart-S-assign-key nil))
       ;; else : "force" or current-key is "nil", i.e. default
-      (define-key ess-mode-map          "_" 'ess-smart-underscore)
-      (define-key inferior-ess-mode-map "_" 'ess-smart-underscore))))
-
+      (define-key ess-mode-map          ess-smart-S-assign-key
+        'ess-smart-S-assign)
+      (define-key inferior-ess-mode-map ess-smart-S-assign-key
+        'ess-smart-S-assign))))
+(defalias 'ess-toggle-underscore 'ess-toggle-S-assign)
 ;; NOTA BENE: "_" is smart *by default* :
 ;; -----  The user can always customize `ess-S-assign' ...
-(ess-toggle-underscore 'force-to-S-assign)
+(ess-toggle-S-assign 'force-to-S-assign)
 
 (defun ess-add-MM-keys ()
   "Define MM's user keys, currently \\<ess-mode-map>\\[ess-insert-function-outline], and
@@ -731,9 +777,10 @@ In that case, the it is removed and replaced by the underscore.
   (define-key ess-mode-map          "\C-cf" 'ess-insert-function-outline)
   (define-key inferior-ess-mode-map "\C-cw" 'ess-execute-screen-options)
 
-  ;; Make A-- : [Alt] + [-] (in addition to / instead of  "_" = (on US-keyboard) [Shift]+ [-]
-  (define-key ess-mode-map          [?\A--] 'ess-insert-S-assign)
-  (define-key inferior-ess-mode-map [?\A--] 'ess-insert-S-assign)
+  ;; Make M-- : [Alt] + [-] (in addition to / instead of  "_" = (on US-keyboard) [Shift]+ [-]
+  ;; Note this overwrites 'M--' as "negative argument" (still on 'C--'):
+  (define-key ess-mode-map          [?\M--] 'ess-insert-S-assign)
+  (define-key inferior-ess-mode-map [?\M--] 'ess-insert-S-assign)
   )
 
 
@@ -759,15 +806,67 @@ and I need to relearn emacs lisp (but I had to, anyway."
     (set-syntax-table ess-mode-syntax-table)
     ))
 
-(add-hook 'ess-mode-hook
-          (lambda ()
-            (set (make-local-variable 'fill-nobreak-predicate)
-                 'ess-inside-string-p)
-            (set (make-local-variable 'normal-auto-fill-function)
-                 'ess-do-auto-fill)
-            (when (string= ess-language "S");; <- is this needed at all here?
-              (local-set-key "\M-\r" 'ess-use-this-dir))
-            ))
+
+
+;;; S imenu support
+
+;; don't use syntax classes, bad for etags
+(defvar ess-imenu-S-generic-expression
+  '(("Functions" "^\\(.+\\)[ \t\n]*<-[ \t\n]*function[ ]*(" 1)
+    ("Classes" "^.*setClass(\\(.*\\)," 1)
+    ("Coercions" "^.*setAs(\\([^,]+,[^,]*\\)," 1) ; show from and to
+    ("Generics" "^.*setGeneric(\\([^,]*\\)," 1)
+    ("Methods" "^.*set\\(Group\\|Replace\\)?Method(\\([^,]+,[^,]*\\)" 2)
+    ;;[ ]*\\(signature=\\)?(\\(.*,?\\)*\\)," 1)
+    ;;
+    ;;("Other" "^\\(.+\\)\\s-*<-[ \t\n]*[^\\(function\\|read\\|.*data\.frame\\)]" 1)
+    ("Package" "^.*\\(library\\|require\\)(\\(.*\\)" 2)
+    ("Data" "^\\(.+\\)[ \t\n]-*<-[ \t\n]*\\(read\\|.*data\.frame\\).*(" 1)))
+
+(defun ess-imenu-S (&optional arg)
+  "S Language Imenu support for ESS."
+  (interactive)
+  (setq imenu-generic-expression ess-imenu-generic-expression)
+  (imenu-add-to-menubar "Imenu-S"))
+
+(defalias 'ess-imenu-R 'ess-imenu-S)
+
+
+ ;;; Speedbar stuff.
+(defun ess-S-initialize-speedbar ()
+  "Extend to all extensions; see initialization, and edit."
+  (speedbar-add-supported-extension ".R")
+  (speedbar-add-supported-extension ".S")
+  (speedbar-add-supported-extension ".s")
+  (speedbar-add-supported-extension ".q"))
+
+                                        ;(if (featurep 'speedbar)
+                                        ;    (progn
+                                        ;      (message "enabling speedbar support")
+                                        ;      (require 'speedbar)
+                                        ;      (ess-S-initialize-speedbar)))
+
+(eval-when-compile
+  (condition-case nil
+      (progn
+        (require 'speedbar)
+        (when (featurep 'speedbar)
+          (message "enabling speedbar support")
+
+          (defun S-speedbar-buttons (buffer)
+            "attempted hack."
+
+            ;;(speedbar-make-tag-line)
+            ;;(speedbar-insert-button)
+            (speedbar-with-writable))
+
+          (fset 'R-speedbar-buttons 'S-speedbar-buttons)
+
+          (defun S-speedbar-menu-items  ( )
+            "Need to write.")
+
+          (ess-S-initialize-speedbar)))
+    (error nil)))
 
 (provide 'ess-s-l)
 

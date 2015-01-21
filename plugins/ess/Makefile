@@ -3,13 +3,15 @@
 ## Before making changes here, please take a look at Makeconf
 include ./Makeconf
 
+ETC_FILES = etc/SVN-REVISION # etc/ESSR-VERSION
+
 ## This is the default target, i.e. 'make' and 'make all' are the same.
-all install uninstall: etc/SVN-REVISION
+all install uninstall: $(ETC_FILES)
 	cd etc; $(MAKE) $@
 	cd lisp; $(MAKE) $@
 	cd doc; $(MAKE) $@
 
-lisp: etc/SVN-REVISION
+lisp: $(ETC_FILES)
 	cd lisp; $(MAKE)
 
 ## the rest of the targets are for ESS developer's use only :
@@ -17,11 +19,14 @@ lisp: etc/SVN-REVISION
 # VERSION:
 # 	@echo "$(ESSVERSION)" > $@
 ## Hmm, this is a bit brittle ... but for distribution, there's no problem
-etc/SVN-REVISION: VERSION lisp/*.el doc/*.texi */Makefile Makefile Makeconf
-	(LC_ALL=C TZ=GMT svn info -r HEAD || $(ECHO) "Revision: unknown") 2> /dev/null \
+etc/SVN-REVISION etc/SVN-REVISION-tmp: VERSION lisp/*.el doc/*.texi doc/Makefile etc/Makefile lisp/Makefile Makefile Makeconf
+	(LC_ALL=C TZ=GMT svn info || $(ECHO) "Revision: unknown") 2> /dev/null \
 	    | sed -n -e '/^Revision/p' -e '/^Last Changed Date/'p \
 	    | cut -d' ' -f1,2,3,4 > $@-tmp
-	if [ -s $@-tmp ]; then mv $@-tmp $@ ; elif [ ! -e $@ ]; then echo 'not available' > $@ ; fi
+	if [ -s $@-tmp ]; then mv $@-tmp $@ ; elif [ ! -f $@ ]; then echo 'not available' > $@ ; fi
+
+# etc/ESSR-VERSION: etc/ESSR/DESCRIPTION
+# 	sed -n '/^Version: */{ s///; s/ *$$//p }' $< > $@
 
 
 ## --- PRE-release ---
@@ -62,9 +67,9 @@ downloads: all RPM.spec cleanup-dist
 dist: VERSION downloads
 	grep -E 'defvar ess-(version|revision)' lisp/ess-custom.el \
 	  $(ESSDIR)/lisp/ess-custom.el
-	touch $@
+##	touch $@
 
-.PHONY: cleanup-dist cleanup-rel
+.PHONY: cleanup-dist cleanup-rel dist
 cleanup-dist:
 	@echo "** Cleaning up **"
 	(if [ -d $(ESSDIR) ] ; then \

@@ -1,10 +1,10 @@
 ;;; ess-mouse.el --- Support for mouse- or cursor-sensitive actions
 
-;; Copyright (C) 2001 Richard M. Heiberger <rmh@sbm.temple.edu>
-;; Copyright (C) 2002--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 2001 Richard M. Heiberger <rmh@temple.edu>
+;; Copyright (C) 2002--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
-;; Author: Richard M. Heiberger <rmh@sbm.temple.edu>
+;; Author: Richard M. Heiberger <rmh@temple.edu>
 ;; Created: 25 Mar 2001
 ;; Maintainer: ESS-core <ESS-core@r-project.org>
 
@@ -20,9 +20,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -170,6 +169,7 @@ the string one more time by embedding it in a \"page()\" command."
   (interactive)
   (let* (scommand
          page-scommand
+         (lproc-name ess-local-process-name)
          (ess-mouse-customize-alist ess-local-customize-alist))
     (if (not head) (setq head "summary("))
     (if (not tail) (setq tail ")"))
@@ -191,7 +191,7 @@ the string one more time by embedding it in a \"page()\" command."
       (ess-make-buffer-current)
       (switch-to-buffer commands-buffer)
       (ess-setq-vars-local (eval ess-mouse-customize-alist) (current-buffer))
-      (setq ess-local-process-name ess-current-process-name)
+      (setq ess-local-process-name lproc-name)
       (ess-command (concat scommand "\n") commands-buffer)
       (if (not value-returned) (switch-to-buffer (nth 1 (buffer-list)))))
     (if (not value-returned)
@@ -200,7 +200,7 @@ the string one more time by embedding it in a \"page()\" command."
           (while (search-forward "\r" nil t)   ;; function to keep the ^M
             (replace-match "" nil t)))         ;; from showing up at all
       (ess-transcript-mode (eval ess-mouse-customize-alist))
-      (setq ess-local-process-name ess-current-process-name)
+      (setq ess-local-process-name lproc-name)
       (rename-buffer scommand))))
 
 

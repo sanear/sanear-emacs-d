@@ -19,9 +19,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -42,16 +41,14 @@ ess-process is running as an ordinary inferior process.  Alway
 nil on Unix machines."
   (interactive)
   (if ess-microsoft-p
-      (let ((ess-ddeclient (ess-get-process-variable
-                            ess-local-process-name 'inferior-ess-ddeclient)))
+      (let ((ess-ddeclient (ess-get-process-variable 'inferior-ess-ddeclient)))
         (if (not (equal ess-ddeclient (default-value 'inferior-ess-ddeclient)))
             ess-ddeclient))))
 
 (defun ess-eval-region-execdde (start end even-empty)
   "Loop through lines in region and send them to ESS via execdde."
   (setq ;; set the following variables for the current ddeESS process.
-   inferior-ess-ddeclient (ess-get-process-variable
-                           ess-current-process-name 'inferior-ess-ddeclient)
+   inferior-ess-ddeclient (ess-get-process-variable 'inferior-ess-ddeclient)
    )
   (write-region start end ess-command-file nil nil 'no-message)
   (call-process-shell-command
@@ -62,7 +59,7 @@ nil on Unix machines."
 (if (not (getenv "R_HOME")) (setenv "R_HOME" "c:/progra~1/R/R-2.6.1"))
 ;;                                                         ^^^^^^^^^ FIXME! do something better
 (defvar inferior-Rgui-program-name "cmd" "Rgui program name")
-(defvar Rgui-pager "gnuclientw.exe" "Rgui pager program")
+(defvar Rgui-pager "emacsclientw.exe" "Rgui pager program")
 (defvar ess-command-file "c:/temp/ess-tempfile.R"
   "file name for communication with Rgui")
 (defvar inferior-ess-execdde
@@ -71,18 +68,15 @@ nil on Unix machines."
 (defvar ess-rgui-command " -s TclEval -t R -c .ess.command > NUL"
   "command to inferior-ess-execdde that will make Rgui read the command file")
 (defvar inferior-ess-language-start-rgui
-  "options(chmhelp=FALSE, htmlhelp=FALSE, help_type = 'text'); require(tcltk2)"
+  "options(chmhelp=FALSE, htmlhelp=FALSE, help_type='text'); require(tcltk2)"
   "additional arguments to rgui")
 
 (defun ess-eval-region-ddeclient (start end even-empty)
   "Loop through lines in region and send them to ESS via ddeclient."
   (setq ;; set the following variables for the current ddeESS process.
-   inferior-ess-ddeclient (ess-get-process-variable
-                           ess-current-process-name 'inferior-ess-ddeclient)
-   inferior-ess-client-name (ess-get-process-variable
-                             ess-current-process-name 'inferior-ess-client-name)
-   inferior-ess-client-command (ess-get-process-variable
-                                ess-current-process-name 'inferior-ess-client-command))
+   inferior-ess-ddeclient (ess-get-process-variable 'inferior-ess-ddeclient)
+   inferior-ess-client-name (ess-get-process-variable 'inferior-ess-client-name)
+   inferior-ess-client-command (ess-get-process-variable 'inferior-ess-client-command))
   (narrow-to-region start end)
   (goto-char (point-min))
 
@@ -125,10 +119,9 @@ nil on Unix machines."
      (ess-cmd-delay . ess-R-cmd-delay)
      (ess-function-pattern              . ess-R-function-pattern)
      (ess-object-name-db-file . "ess-r-namedb.el" )
-     (ess-imenu-mode-function . 'ess-imenu-R)
      (inferior-ess-program . inferior-Rgui-program-name)
      (inferior-ess-objects-command . inferior-R-objects-command)
-     (inferior-ess-font-lock-keywords   . inferior-ess-R-font-lock-keywords)
+     (inferior-ess-font-lock-keywords   . 'inferior-R-font-lock-keywords)
      (inferior-ess-search-list-command . "search()\n")
      (inferior-ess-help-command . "help(\"%s\")\n")
      (inferior-ess-help-filetype        . nil) ;; "chm") ;;?
@@ -180,16 +173,14 @@ independent Rgui R Console."
 You may ignore the 'options' error in this buffer.\n\n")
     (goto-char (point-max))
     (set-buffer-process-coding-system 'raw-text-dos 'raw-text-unix)
-    (toggle-read-only t) ; force buffer to be read-only
+    (setq buffer-read-only t) ; force buffer to be read-only
     (setq mode-name "ddeESS")
 
     ;; initialization
     (set-buffer (find-file-noselect ess-command-file 'nowarn))
     (erase-buffer)
     (setq ;; set the following variables for the current ddeESS process.
-     inferior-ess-language-start (ess-get-process-variable
-                                  ess-current-process-name
-                                  'inferior-ess-language-start))
+     inferior-ess-language-start (ess-get-process-variable 'inferior-ess-language-start))
     (if inferior-ess-language-start
         (insert inferior-ess-language-start))
     (if inferior-ess-language-start-rgui

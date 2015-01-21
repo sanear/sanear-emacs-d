@@ -1,7 +1,7 @@
 ;;; ess-sta-d.el --- Stata customization
 
 ;; Copyright (C) 1997--1999 A. J. Rossini, Thomas Lumley
-;; Copyright (C) 1997--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: A.J. Rossini <rossini@biostat.washington.edu>
@@ -22,9 +22,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -38,7 +37,7 @@
 
 (require 'ess-sta-l)
 
-(defvar STA-dialect-name "Stata"
+(defvar STA-dialect-name "stata"
   "Name of 'dialect' for Stata.");easily changeable in a user's .emacs
 
 (defvar STA-customize-alist
@@ -53,7 +52,8 @@
     (ess-help-sec-keys-alist       . ess-help-STA-sec-keys-alist)
     (ess-loop-timeout              . 500000 )
     (ess-object-name-db-file       . "ess-sta-namedb.el" )
-    (inferior-ess-font-lock-keywords . ess-STA-mode-font-lock-keywords)
+    (ess-help-web-search-command   . "http://www.stata.com/search/?q=%s&restrict=&btnG=Search&client=stata&num=&output=xml_no_dtd&site=stata&ie=&oe=UTF-8&sort=&proxystylesheet=stata")
+    (inferior-ess-font-lock-defaults . ess-STA-mode-font-lock-defaults)
     (inferior-ess-program          . inferior-STA-program-name)
     (inferior-ess-objects-command  . "describe\n")
     (inferior-ess-help-command     . "help %s\n") ;; assumes set more off 
@@ -66,6 +66,10 @@
     (inferior-ess-start-args       . inferior-STA-start-args)
     (ess-get-help-topics-function  . 'ess-get-STA-help-topics)
     (inferior-ess-search-list-command   . "set more off\n search()\n")
+    (comment-start                . "/\* ")
+    (comment-end                  . " \*/")
+    (comment-start-skip           . "/\\*+ *")
+    (comment-use-syntax           . t) ;; needed for multiline
     )
   "Variables to customize for Stata.")
 
@@ -78,6 +82,27 @@
 
 (fset 'stata-mode 'STA-mode)
 (fset 'Stata-mode 'STA-mode)
+
+
+(defun ess-sta-remove-comments (string)
+  "Remove one-line comments before sending the STRING to process.
+
+This function is placed in `ess-presend-filter-functions'.
+"
+  (replace-regexp-in-string "/\\*.*\\*/\\|^//.*$" "" string))
+
+;; (ess-sta-remove-comments "aaa /* sdfdsf */ bbb
+;; sdfsd
+;;  ccc
+;; // sdfsf
+;; sdf /* sdfdsf */
+;; sdfsf
+;; " )
+
+
+(defvar ess-stata-post-run-hook nil
+  "Functions run in process buffer after the initialization of
+  stata process.")
 
 (defun stata (&optional start-args)
   "Call Stata."
@@ -98,7 +123,11 @@
         (ess-wait-for-process proc t))
       (ess-send-string proc "set more off")
       (goto-char (point-max))
-      )))
+      (with-current-buffer (process-buffer proc)
+        (add-hook 'ess-presend-filter-functions 'ess-sta-remove-comments nil 'local)
+        (run-mode-hooks 'ess-stata-post-run-hook))
+      )
+    ))
 
 
 (defun STA-transcript-mode ()
@@ -118,9 +147,7 @@
       )))
 
 (defun ess-get-STA-help-topics (&optional name)
-  "Return a list of current STA help topics associated with process NAME.
-If `ess-sp-change' is non-nil or `ess-help-topics-list' is nil, (re)-populate
-the latter and return it.  Otherwise, return `ess-help-topics-list'."
+  "Return a list of current STA help topics associated with process NAME."
   (or (ess-process-get 'help-topics)
       (progn
         (ess-process-put 'help-topics (ess--STA-retrive-topics-from-search))

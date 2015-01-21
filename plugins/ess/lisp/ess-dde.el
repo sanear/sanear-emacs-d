@@ -1,10 +1,10 @@
 ;;; ess-dde.el --- ESS customization for ddeclients under Windows 9x/NT
 
-;; Copyright (C) 1998--1999 Richard M. Heiberger <rmh@fisher.stat.temple.edu>
-;; Copyright (C) 2000--2006 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1998--1999 Richard M. Heiberger <rmh@temple.edu>
+;; Copyright (C) 2000--2006 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
-;; Author: Richard M. Heiberger  <rmh@fisher.stat.temple.edu>
+;; Author: Richard M. Heiberger  <rmh@temple.edu>
 ;; Created: 9 Dec 1998
 ;; Maintainer: ESS-core <ESS-core@r-project.org>
 
@@ -20,9 +20,9 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
+
 
 ;;; Commentary:
 
@@ -38,12 +38,9 @@
 (defun ess-eval-region-ddeclient (start end even-empty)
   "Loop through lines in region and send them to ESS via ddeclient."
   (setq ;; set the following variables for the current ddeESS process.
-   inferior-ess-ddeclient (ess-get-process-variable
-                           ess-current-process-name 'inferior-ess-ddeclient)
-   inferior-ess-client-name (ess-get-process-variable
-                             ess-current-process-name 'inferior-ess-client-name)
-   inferior-ess-client-command (ess-get-process-variable
-                                ess-current-process-name 'inferior-ess-client-command))
+   inferior-ess-ddeclient (ess-get-process-variable 'inferior-ess-ddeclient)
+   inferior-ess-client-name (ess-get-process-variable 'inferior-ess-client-name)
+   inferior-ess-client-command (ess-get-process-variable 'inferior-ess-client-command))
   (narrow-to-region start end)
   (goto-char (point-min))
   (let ((beg))
@@ -69,8 +66,7 @@
 (defun ess-eval-linewise-ddeclient (text-withtabs &optional
                                                   invisibly eob even-empty
                                                   sleep-sec)
-  (save-excursion
-    (set-buffer (get-buffer-create "*ESS-temporary*"))
+  (with-current-buffer (get-buffer-create "*ESS-temporary*")
     (ess-setq-vars-local ess-customize-alist (current-buffer))
     (erase-buffer)
     (insert text-withtabs)
@@ -98,14 +94,13 @@ nor offer alternate buffers or editing capability."
         (error "Buffer %s has not been saved" (buffer-name source-buffer))
       ;; Find the process to load into
       (if source-buffer
-          (save-excursion
-            (set-buffer source-buffer)
+          (with-current-buffer source-buffer
             (ess-force-buffer-current "Process to load into: ")
             ;; (ess-check-modifications) ;;; not possible with ddeclient
             ;; it calls ess-command which requires two-way communication
             ;; with the S-Plus process
             )))
-    (ess-eval-linewise-ddeclient (format inferior-ess-load-command filename)))
+    (ess-eval-linewise-ddeclient (format ess-load-command filename)))
   (widen))
 
 

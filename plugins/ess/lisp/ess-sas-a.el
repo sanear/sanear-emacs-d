@@ -1,6 +1,6 @@
 ;;; ess-sas-a.el --- clean-room implementation of many SAS-mode features
 
-;; Copyright (C) 1997--2009 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2009 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: Rodney A. Sparapani
@@ -20,9 +20,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 ;;
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Code:
 
@@ -621,6 +620,9 @@ current buffer if nil."
 
 (defun ess-sas-goto (suffix &optional revert no-create)
   "Find a file associated with a SAS file by suffix and revert if necessary."
+; (interactive)
+;  (let ((ess-temp-regexp (concat ess-sas-suffix-regexp "[.]?[1-9]?\\'")))
+; can we identify common nonsense extensions like .log.1 or .sas.2?
   (let ((ess-temp-regexp (concat ess-sas-suffix-regexp "\\(@.+\\)?\\'")))
     (save-match-data
       (if (or (string-match ess-temp-regexp (expand-file-name (buffer-name)))
@@ -797,22 +799,25 @@ optional argument is non-nil, then set-buffer rather than switch."
   "And now for something completely different."
   (interactive)
   (ess-sas-file-path)
-
+  (setq ess-customize-alist SAS-customize-alist)
   (let ((ess-temp-sas-file
          (nth 0 (split-string
                  (car (last (split-string ess-sas-file-path "\\([a-zA-Z][a-zA-Z]:\\|]\\)"))) "[.]"))))
     ;;    (message "%s" ess-temp-sas-file)
     (setq ess-sas-shell-buffer "*iESS[SAS]*")
     (ess-sas-goto-shell)
-    (insert (concat ess-sas-submit-command " " ess-sas-submit-command-options
-                    " -altlog " ess-temp-sas-file ".log -altprint "
-                    ess-temp-sas-file ".lst -stdio < /dev/tty"))
-    (comint-send-input)
     (ess-add-ess-process)
+    (ess-setq-vars-local ess-customize-alist)
+    (inferior-ess-mode)
+    (ess-eval-linewise (concat ess-sas-submit-command " " ess-sas-submit-command-options
+                               " -altlog " ess-temp-sas-file ".log -altprint "
+                               ess-temp-sas-file ".lst -stdio"))
+                               ;;ess-temp-sas-file ".lst -stdio < /dev/tty"))
     (ess-sas-goto-sas)
     (setq ess-sas-submit-method 'iESS)
     (setq ess-eval-visibly-p nil)
     ))
+
 ;;(defun ess-sas-interactive ()
 ;;    (interactive)
 ;;    (ess-sas-file-path)
@@ -896,27 +901,15 @@ optional argument is non-nil, then set-buffer rather than switch."
 ))
     (error nil)) 
 ; else
-(defun ess-rtf-replace-chars ()
-  "Convert a text file to an MS RTF file."
-  (interactive)
-  (goto-char (point-min))
-  (while (re-search-forward "\n" nil t) (replace-match "\\par\n" nil t))
-  (goto-char (point-min))
-  (while (re-search-forward "\f" nil t) (replace-match "\\page\n" nil t))
-  (goto-char (point-min))
-  (while (re-search-forward "\t" nil t) (replace-match "\\tab" nil t)))
-
 (defun ess-sas-rtf-portrait (&optional ess-tmp-font-size)
   "Creates an MS RTF portrait file from the current buffer."
   (interactive)
-  (ess-sas-file-path t)
+;  (ess-sas-file-path t)
   (ess-revert-wisely)
 
-  (let
-      ((ess-temp-rtf-file
-        (replace-regexp-in-string "[.][^.]*$" ".rtf" ess-sas-file-path)))
-    (copy-file ess-sas-file-path ess-temp-rtf-file t)
-    (ess-sas-goto "rtf" t)
+  (set-visited-file-name (concat (buffer-name) ".rtf"))
+;    (ess-sas-goto "rtf" t)
+  (if 'buffer-read-only (setq buffer-read-only nil))
     (ess-rtf-replace-chars)
 
     (goto-char (point-min))
@@ -931,8 +924,45 @@ optional argument is non-nil, then set-buffer rather than switch."
     (insert "}}}}\n")
 
     (save-buffer)
-    (kill-buffer (current-buffer))))
+    (kill-buffer (current-buffer))) 
 )   
+
+(defun ess-rtf-replace-chars ()
+  "Convert a text file to an MS RTF file."
+  (interactive)
+  (goto-char (point-min))
+  (while (re-search-forward "\n" nil t) (replace-match "\\par\n" nil t))
+  (goto-char (point-min))
+  (while (re-search-forward "\f" nil t) (replace-match "\\page\n" nil t))
+  (goto-char (point-min))
+  (while (re-search-forward "\t" nil t) (replace-match "\\tab" nil t)))
+
+(defun ess-sas-rtf-landscape (&optional ess-tmp-font-size)
+  "Creates an MS RTF landscape file from the current buffer."
+  (interactive)
+  (ess-revert-wisely)
+
+  (set-visited-file-name (concat (buffer-name) ".rtf"))
+
+  (if 'buffer-read-only (setq buffer-read-only nil))
+    (ess-rtf-replace-chars)
+
+    (goto-char (point-min))
+            (insert (concat
+             "{\\rtf1\\ansi{\\fonttbl\\f1\\fmodern " ess-sas-rtf-font-name ";}\n"
+             "\\margl720\\margr720\\margt720\\margb720\n"
+	     "{\\*\\pgdsctbl\n"
+	     "{\\pgdsc0\\pgdscuse195\\lndscpsxn\\pgwsxn15840\\pghsxn12240\\marglsxn1800\\margrsxn1800\\margtsxn1440\\margbsxn1440\\pgdscnxt0 Default;}}\n"
+	     "\\landscape\\paperh12240\\paperw15840\\margl1800\\margr1800\\margt1440\\margb1440\\sectd\\sbknone\\lndscpsxn\\pgwsxn15840\\pghsxn12240\\marglsxn1800\\margrsxn1800\\margtsxn1440\\margbsxn1440\\ftnbj\\ftnstart1\\ftnrstcont\\ftnnar\\aenddoc\\aftnrstcont\\aftnstart1\\aftnnrlc\n"
+             "{\\colortbl;\\red0\\green0\\blue0;\\red0\\green0\\blue255;\\red0\\green255\\blue255;\\red0\\green255\\blue0;\\red255\\green0\\blue255;\\red255\\green0\\blue0;\\red255\\green255\\blue0;\\red255\\green255\\blue255;\\red0\\green0\\blue128;\\red0\\green128\\blue128;\\red0\\green128\\blue0;\\red128\\green0\\blue128;\\red128\\green0\\blue0;\\red128\\green128\\blue0;\\red128\\green128\\blue128;\\red192\\green192\\blue192;}\n"
+             "{\\stylesheet{\\s15\\plain\\f1\\fs16\\cf1\\cb8\\lang1024 Emacs Text;}{\\*\\cs16 \\additive\\f1\\fs16\\cf1\\cb8\\lang1024 Emacs Base Style;}}\n"
+             "{\\plain\\s15{\\cs16\\cs16\\f1\\fs16\\cf1\\cb8\\lang1024{\\cs16\\f1\\fs16\\cf1\\cb8\\lang1024\n"))
+
+    (goto-char (point-max))
+    (insert "}}}}\n")
+
+    (save-buffer)
+    (kill-buffer (current-buffer))) 
 
 (defun ess-sas-rtf-us-landscape ()
   "Creates an MS RTF US landscape file from the current buffer."
@@ -1294,7 +1324,7 @@ accepted for backward compatibility, however, arg is ignored."
   (interactive)
   (when (or (not (featurep 'xemacs)) (featurep 'rtf-support))
     (global-set-key [(control f1)] 'ess-sas-rtf-portrait)
-    (global-set-key [(control f2)] 'ess-sas-rtf-us-landscape))
+    (global-set-key [(control f2)] 'ess-sas-rtf-landscape))
   (global-set-key (quote [f2]) 'ess-revert-wisely)
   (global-set-key (quote [f3]) 'ess-sas-goto-shell)
   (global-set-key (quote [f4]) 'ess-sas-goto-file-1)
@@ -1332,7 +1362,7 @@ accepted for backward compatibility, however, arg is ignored."
   (interactive)
   (when (or (not (featurep 'xemacs)) (featurep 'rtf-support))
     (global-set-key [(control f1)] 'ess-sas-rtf-portrait)
-    (global-set-key [(control f2)] 'ess-sas-rtf-us-landscape))
+    (global-set-key [(control f2)] 'ess-sas-rtf-landscape))
   (global-set-key (quote [f2]) 'ess-revert-wisely)
   (global-set-key (quote [f3]) 'ess-sas-submit)
   (global-set-key [(control f3)] 'ess-sas-submit-region)
@@ -1371,7 +1401,7 @@ in SAS-mode and related modes.")
   (interactive)
   (when (or (not (featurep 'xemacs)) (featurep 'rtf-support))
     (define-key sas-mode-local-map [(control f1)] 'ess-sas-rtf-portrait)
-    (define-key sas-mode-local-map [(control f2)] 'ess-sas-rtf-us-landscape))
+    (define-key sas-mode-local-map [(control f2)] 'ess-sas-rtf-landscape))
   (define-key sas-mode-local-map (quote [f2]) 'ess-revert-wisely)
   (define-key sas-mode-local-map (quote [f3]) 'ess-sas-goto-shell)
   (define-key sas-mode-local-map (quote [f4]) 'ess-sas-goto-file-1)
@@ -1405,7 +1435,7 @@ in SAS-mode and related modes.")
   (interactive)
   (when (or (not (featurep 'xemacs)) (featurep 'rtf-support))
     (define-key sas-mode-local-map [(control f1)] 'ess-sas-rtf-portrait)
-    (define-key sas-mode-local-map [(control f2)] 'ess-sas-rtf-us-landscape))
+    (define-key sas-mode-local-map [(control f2)] 'ess-sas-rtf-landscape))
   (define-key sas-mode-local-map (quote [f2]) 'ess-revert-wisely)
   (define-key sas-mode-local-map (quote [f3]) 'ess-sas-submit)
   (define-key sas-mode-local-map [(control f3)] 'ess-sas-submit-region)

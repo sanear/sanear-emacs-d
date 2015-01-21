@@ -1,6 +1,6 @@
 ;;; ess-sp6-d.el --- S-Plus 6 & 7 & 8  customization
 
-;; Copyright (C) 2001--2005 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 2001--2005 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: A.J. Rossini <rossini@u.washington.edu>
@@ -21,9 +21,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -45,77 +44,105 @@
 ;; You now need to make sure you've defined if you are running 5.0 or 5.1.
 ;; Lots of things are broken between them, GRR...
 
-(defvar S+6-dialect-name "S+6"
-  "Name of 'dialect' for S-PLUS 6.");easily changeable in a user's .emacs
-
-(defun S+6-directory-p (directory)
+(defun S+-directory-p (directory)
   "Splus 5++ directories have a .Data directory and a __Meta directory within."
   (and directory
        (file-directory-p (concat directory ".Data"))
        (file-directory-p (concat directory ".Data/__Meta"))))
 
-(defvar S+6-directory-function
+(defvar S+-directory-function
   (lambda ()
-    (if (S+6-directory-p default-directory)
+    (if (S+-directory-p default-directory)
         default-directory
       (or ess-directory default-directory))))
 
-(defvar S+6-setup-directory-function
+(defvaralias 'S+6-setup-directory-function 'S+-setup-directory-function)
+(defvar S+-setup-directory-function
   (lambda (startdir)
-    (when (and startdir (S+6-directory-p startdir))
+    (when (and startdir (S+-directory-p startdir))
       (setenv "S_WORK"
               (if (getenv "S_WORK")
                   (concat startdir ":" (getenv "S_WORK"))
                 ;;(message "adding %s to S_WORK" startdir)
                 startdir)))))
 
-(defvar S+6-customize-alist
+
+
+(defvaralias 'S+6-customize-alist 'S+-customize-alist)
+(defvar S+-customize-alist
   (append
-   '((ess-local-customize-alist         . 'S+6-customize-alist)
-     (ess-dialect                       . S+6-dialect-name)
+   '((ess-local-customize-alist         . 'S+-customize-alist)
+     (ess-dialect                       . S+-dialect-name)
      (ess-loop-timeout                  . ess-S-loop-timeout);fixme: dialect spec.
      (ess-function-pattern              . ess-R-function-pattern)
 
      (ess-object-name-db-file           . "ess-sp6-namedb.el")
-     (inferior-ess-program              . inferior-S+6-program-name)
-     (inferior-ess-help-command   . "help(\"%s\",pager=\"slynx -dump\",window=F)\n")
+     (inferior-ess-program              . inferior-S+-program-name)
+     (inferior-ess-help-command   . "help(\"%s\", pager=\"slynx -dump\", window=FALSE)\n")
      (inferior-ess-help-filetype . nil)
      (inferior-ess-search-list-command  . "searchPaths()\n")
 
-     (ess-directory-function            . S+6-directory-function)
-     (ess-setup-directory-function      . S+6-setup-directory-function)
-     (inferior-ess-start-args       . inferior-Splus-args)
+     (ess-directory-function            . S+-directory-function)
+     (ess-setup-directory-function      . S+-setup-directory-function)
+     (inferior-ess-start-args       . inferior-S+-start-args)
      (ess-STERM  . "iESS")
      )
    S+common-cust-alist)
 
-  "Variables to customize for S+6.")
+  "Variables to customize for S+.")
 
+(defvar ess-S+-post-run-hook nil
+  "Functions run in process buffer after the initialization of S+
+  process.")
 
-(defun S+6 (&optional proc-name)
+(defalias 'S+6 'S+)
+(defun S+ (&optional proc-name)
   "Call 'Splus6', based on S version 4, from Bell Labs.
 New way to do it."
   (interactive)
-  (setq ess-customize-alist S+6-customize-alist)
+  (setq ess-customize-alist S+-customize-alist)
   (ess-write-to-dribble-buffer
-   (format "\n(S+6): ess-dialect=%s, buf=%s\n" ess-dialect (current-buffer)))
+   (format "\n(S+): ess-dialect=%s, buf=%s\n" ess-dialect (current-buffer)))
   (inferior-ess)
+  (ess-command ess-S+--injected-code)
   (if inferior-ess-language-start
-      (ess-eval-linewise inferior-ess-language-start)))
+      (ess-eval-linewise inferior-ess-language-start))
+  (with-ess-process-buffer nil
+    (run-mode-hooks 'ess-S+-post-run-hook)))
+
+(defvar ess-S+--injected-code
+  ".ess_funargs <- function(funname){
+  ## funname <- deparse(substitute(object))
+  fun <- try(eval(parse(text=funname)), silent = TRUE)
+  if(is.function(fun)) {
+    special <- grepl('[:$@[]', funname)
+    args <- args(fun)
+    fmls <- formals(args)
+    fmls.names <- names(fmls)
+    fmls <- gsub('\\\"', '\\\\\\\"', as.character(fmls), fixed = TRUE)
+    args.alist <- sprintf(\"'(%s)\", paste(\"(\\\"\", fmls.names, \"\\\" . \\\"\", fmls, \"\\\")\", sep = '', collapse = ' '))
+    ## envname <- environmentName(environment(fun))
+    envname <-  if (special) '' else 'S+'
+    cat(sprintf('(list \\\"%s\\\" %s )\\n', envname, args.alist))
+  }
+}
+")
 
 
-(defun S+6-mode (&optional proc-name)
-  "Major mode for editing S+6 source.  See `ess-mode' for more help."
+(defalias 'S+6-mode 'S+-mode)
+(defun S+-mode (&optional proc-name)
+  "Major mode for editing S+ source.  See `ess-mode' for more help."
   (interactive)
-  (setq ess-customize-alist S+6-customize-alist)
-  (ess-mode S+6-customize-alist proc-name)
+  (setq ess-customize-alist S+-customize-alist)
+  (ess-mode S+-customize-alist proc-name)
   (if (fboundp 'ess-add-toolbar) (ess-add-toolbar))
   (if ess-imenu-use-S (ess-imenu-S)))
 
-(defun S+6-transcript-mode ()
+(defalias 'S+6-transcript-mode 'S+-transcript-mode)
+(defun S+-transcript-mode ()
   "S-PLUS 6 transcript mode."
   (interactive)
-  (ess-transcript-mode S+6-customize-alist))
+  (ess-transcript-mode S+-customize-alist))
 
 (defvar ess-s-versions-list nil
   "List of other versions of S to add to ESS.
@@ -175,12 +202,11 @@ ESS initialisation."
   \"Call S-X.Y, i.e., the S version 'S-X.Y' using ESS.
 This function was generated by `ess-s-versions-create'.\"
   (interactive \"\")
-  (let ((inferior-S+6-program-name \"S-X.Y\"))
-    (S+6)))
+  (let ((inferior-S+-program-name \"S-X.Y\"))
+    (S+)))
 
 ")
-    (save-excursion
-      (set-buffer eval-buf)
+    (with-current-buffer eval-buf
       ;; clear the buffer.
       (delete-region (point-min) (point-max))
 
@@ -218,8 +244,8 @@ This function was generated by `ess-s-versions-create'.\"
 This function will run S-FULL-PATH
 This function was generated by `ess-s-versions-create'.\"
   (interactive \"\")
-  (let ((inferior-S+6-program-name \"S-FULL-PATH\"))
-    (S+6)))
+  (let ((inferior-S+-program-name \"S-FULL-PATH\"))
+    (S+)))
 
 ")
         ;; need another version of template, with args.
@@ -228,9 +254,9 @@ This function was generated by `ess-s-versions-create'.\"
 This function will run S-FULL-PATH
 This function was generated by `ess-s-versions-create'.\"
   (interactive \"\")
-  (let ((inferior-S+6-program-name \"S-FULL-PATH\")
-        (inferior-Splus-args \"S-MYARGS\"))
-    (S+6)))
+  (let ((inferior-S+-program-name \"S-FULL-PATH\")
+        (inferior-S+-start-args \"S-MYARGS\"))
+    (S+)))
 
 ")
         (while ess-s-versions-list

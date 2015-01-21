@@ -1,6 +1,6 @@
 ;; ess-rd.el --- Support for editing R documentation (Rd) source
 
-;; Copyright (C) 1997--2005  A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 1997--2005  A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: KH <Kurt.Hornik@ci.tuwien.ac.at>
@@ -54,7 +54,7 @@
 (autoload 'ess-switch-to-end-of-ESS     "ess-inf" "[autoload]" t)
 
 (autoload 'ess-help-mode                "ess-help" "[autoload]" t)
-(autoload 'ess-nuke-help-bs             "ess-help" "[autoload]" t)
+(autoload 'ess-help-underline           "ess-help" "[autoload]" t)
 
 (defvar Rd-mode-abbrev-table nil
   "Abbrev table for R documentation keywords.
@@ -143,7 +143,7 @@ All Rd mode abbrevs start with a grave accent (`).")
     ;; "Alpha" "Gamma" "alpha" "beta" "epsilon" "lambda" "mu" "pi" "sigma"
     ;; "ge" "le" "left" "right"
     ;;
-    "R" "RdOpts" "S3method" "S4method" "Sexpr" "acronym"
+    "CRANpkg" "R" "RdOpts" "S3method" "S4method" "Sexpr" "acronym"
     "bold" "cite" "code" "command" "cr" "dQuote" "deqn" "dfn" "dontrun"
     "dontshow" "donttest" "dots" "email" "emph" "enc" "env" "eqn" "figure" "file"
     "href" "if" "ifelse"
@@ -181,10 +181,7 @@ All Rd mode abbrevs start with a grave accent (`).")
 (defvar Rd-indent-level 2
   "*Indentation of Rd code with respect to containing blocks.")
 
-(defvar Rd-mode-map nil
-  "Keymap used in Rd mode.")
-(if Rd-mode-map
-    ()
+(defvar Rd-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\t" 'indent-according-to-mode)
     (define-key map "\C-j" 'reindent-then-newline-and-indent)
@@ -198,14 +195,17 @@ All Rd mode abbrevs start with a grave accent (`).")
     ;;  ^C^F ^L : \link{ . }
     ;;  ^C^F  L : \code{\link{ . }}  etc
     (define-key map "\C-c\C-s" 'Rd-mode-insert-section)
+    (define-key map "\C-ch" 'ess-handy-commands)
     (define-key map "\C-c\C-n" 'ess-eval-line-and-step)
     (define-key map "\C-c\C-r" 'ess-eval-region)
-    (define-key map "\C-c\C-c" 'ess-eval-function-or-paragraph-and-step)
+    (define-key map "\C-c\C-c" 'ess-eval-region-or-function-or-paragraph-and-step)
+    (define-key map "\C-\M-x"  'ess-eval-region-or-function-or-paragraph)
     (define-key map "\C-c\C-v" 'ess-display-help-on-object)
     (define-key map "\C-c\C-w" 'ess-switch-process); is on C-c C-s in ess-mode..
     (define-key map "\C-c\C-y" 'ess-switch-to-ESS)
     (define-key map "\C-c\C-z" 'ess-switch-to-end-of-ESS)
-    (setq Rd-mode-map map)))
+    map)
+  "Keymap used in Rd mode.")
 
 (defvar Rd-mode-menu
   (list "Rd"
@@ -292,6 +292,7 @@ following lines to your `.emacs' file:
   (interactive)
   (text-mode)
   (kill-all-local-variables)
+  (ess-setq-vars-local R-customize-alist) ;same functionality is available as in R buffers
   (use-local-map Rd-mode-map)
   (setq mode-name "Rd")
   (setq major-mode 'Rd-mode)
@@ -474,30 +475,48 @@ following lines to your `.emacs' file:
            (save-excursion
              (insert after))))))
 
-(defun Rd-preview-help ()
-  "Preview the current buffer contents using `Rd-to-help-command'.
+(defun Rd-preview-help (&optional via-shell)
+  "Preview the current Rd buffer contents as help.
+If optional VIA-SHELL is set, using `Rd-to-help-command'.
 If the current buffer is not associated with a file, create a
 temporary one in `temporary-file-directory'.
 "
-  (interactive)
+  (interactive "P")
   (require 'ess-help)
-  (let ((file  buffer-file-name)
+  (let ((file buffer-file-name)
         (pbuf (get-buffer-create "R Help Preview"))
-        del-p shcmd)
+        del-p)
     (unless file
-      (setq file  (make-temp-file "RD_" nil ".Rd"))
+      (setq file (make-temp-file "RD_" nil ".Rd"))
       (write-region (point-min) (point-max) file)
       (setq del-p t))
-    (setq shcmd (format "%s '%s'" Rd-to-help-command file))
-    (set-buffer pbuf)
-    (erase-buffer)
-    (ess-write-to-dribble-buffer
-     (format "Rd-preview-help: (shell-command |%s| t)" shcmd))
-    (shell-command shcmd t)
+
+    (if via-shell ;; FIXME eventually get rid of this option
+        ;; only method in ESS <= 14.09 -- calls "R" even if in "R-devel"; slower
+        (let ((shcmd (format "%s '%s'" Rd-to-help-command file)))
+          (set-buffer pbuf)
+          (erase-buffer)
+          (ess-write-to-dribble-buffer
+           (format "Rd-preview-help: (shell-command |%s| t)" shcmd))
+          (shell-command shcmd t))
+      ;; else directly:
+      (ess-force-buffer-current "R process to use: ")
+      (ess-command (format "tools::Rd2txt(\"%s\")\n" file) pbuf)
+      (set-buffer pbuf))
+
+    ;; FIXME(2): once got rid of via-shell, consider
+    ;; (ess--flush-help-into-current-buffer file "tools::Rd2txt(\"%s\")\n")
+    ;; instead of all this :
+    (ess-setq-vars-local R-customize-alist)
     (setq ess-help-sec-regex ess-help-R-sec-regex
           ess-help-sec-keys-alist ess-help-R-sec-keys-alist)
-    (ess-nuke-help-bs)
+    ;; mostly cut'n'paste from ess--flush-help* (see FIXME(2)):
+    (ess-help-underline)
     (ess-help-mode)
+    (goto-char (point-min))
+    (set-buffer-modified-p 'nil)
+    (setq buffer-read-only t)
+    (setq truncate-lines nil)
     (when del-p (delete-file file))
     (unless (get-buffer-window pbuf 'visible)
       (display-buffer pbuf t))))
@@ -515,6 +534,7 @@ temporary one in `temporary-file-directory'.
     (list
      'essddr-version
      'Rd-indent-level))))
+
 
 ;; Provide ourself
 (provide 'essddr)

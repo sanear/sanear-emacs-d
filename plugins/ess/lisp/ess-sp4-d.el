@@ -1,7 +1,7 @@
 ;;; ess-sp4-d.el --- S-PLUS 4.x customization
 
 ;; Copyright (C) 1998--2002 Richard M. Heiberger <rmh@temple.edu>
-;; Copyright (C) 2003--2004 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 2003--2004 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: Richard M. Heiberger <rmh@temple.edu>
@@ -22,9 +22,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -198,7 +197,7 @@ Splus Commands window appear in this buffer.\n\n")
     (goto-char (point-max))             ; comint-mode-map makes '(ddeESS [S+4])'
     ;;  (use-local-map comint-mode-map) ;a shell buffer after Splus is finished.
     (set-buffer-process-coding-system 'raw-text-dos 'raw-text-unix)
-    (toggle-read-only t)                ; force buffer to be read-only
+    (setq buffer-read-only t)           ; force buffer to be read-only
     (setq mode-name "ddeESS")
     ;;  (ess-eval-linewise inferior-S+4-editor-pager-command)
     (if inferior-ess-language-start
@@ -222,9 +221,8 @@ If you have a HOME environment variable, it will open it there."
     ;; We are picking up an existing S-Plus process for sending to.
     ;; It doesn't know about us, so nothing comes back.
     (S+4 proc-name))
-  (save-excursion
-    (set-buffer (car (buffer-list)))    ; get the ESS buffer just created
-    (toggle-read-only nil)              ; permit writing in ESS buffer
+  (with-current-buffer (car (buffer-list))    ; get the ESS buffer just created
+    (setq buffer-read-only nil)         ; permit writing in ESS buffer
     (goto-char (point-max))
     (beginning-of-line)
     (forward-line -1)
@@ -232,7 +230,7 @@ If you have a HOME environment variable, it will open it there."
      "This is S+4-existing.
 Results of the   !system.command   typed at the S prompt in the
 Splus Commands window blink a DOS window and you won't see them.\n\n")
-    (toggle-read-only t)                ; restore ESS buffer to be read-only
+    (setq buffer-read-only t)           ; restore ESS buffer to be read-only
     ))
 
 
@@ -285,7 +283,7 @@ Splus Commands window blink a DOS window and you won't see them.\n\n")
   (interactive)
   (setq ess-customize-alist S+4-customize-alist)
   (ess-mode S+4-customize-alist proc-name)
-  (if ess-imenu-use-S (ess-imenu-R)))
+  (if ess-imenu-use-S (ess-imenu-S)))
 
 (defun S+4-transcript-mode ()
   "S-PLUS 4.x transcript mode."
@@ -359,19 +357,17 @@ Anything sent to this process from an S-mode buffer goes
 directly to the associated Splus Commands window.\n
 The S-Plus Commands window must be visible.
 You may need to open the S-Plus Commands window manually
-(by clicking on Splus/Window/Commands Window).\n
-There is a 30 second delay when this program starts during which the
-emacs screen will be partially blank.\n
-Remember to
-`q()' from S-Plus and
-then C-x C-q exit from the `'(ddeESS [S+4])'' buffer,
-or take the risk of not being able to shut down your computer
-and suffering through scandisk.\n
-Any results of the   !system.command   typed at the S prompt in the
-Splus Commands window (are supposed to) appear in this buffer.\n\n")
+  (by clicking on Splus/Window/Commands Window).\n There is a 30
+second delay when this program starts during which the emacs
+screen will be partially blank.\n Remember to `q()' from S-Plus
+and then C-x C-q exit from the `'(ddeESS [S+4])'' buffer, or take
+the risk of not being able to shut down your computer and
+suffering through scandisk.\n Any results of the !system.command
+typed at the S prompt in the Splus Commands window (are supposed
+to) appear in this buffer.\n\n")
     (goto-char (point-max))            ; comint-mode-map makes '(ddeESS [S+4])'
     (use-local-map comint-mode-map)    ; a shell buffer after Splus is finished.
-    (toggle-read-only t)               ; force buffer to be read-only
+    (setq buffer-read-only t)          ; force buffer to be read-only
     (setq mode-name "ddeESS")
 ;;  (ess-eval-linewise inferior-S+4-editor-pager-command)
     (if inferior-ess-language-start
@@ -390,7 +386,7 @@ If you have a HOME environment variable, it will open it there."
     (S+4-msdos proc-name))
   (save-excursion
     (set-buffer (car (buffer-list)))    ; get the ESS buffer just created
-    (toggle-read-only nil)              ; permit writing in ESS buffer
+    (setq buffer-read-only nil)         ; permit writing in ESS buffer
     (goto-char (point-max))
     (beginning-of-line)
     (forward-line -1)
@@ -398,7 +394,7 @@ If you have a HOME environment variable, it will open it there."
      "This is S+4-msdos-existing.
 Results of the   !system.command   typed at the S prompt in the
 Splus Commands window blink a DOS window and you won't see them.\n\n")
-    (toggle-read-only t)                ; restore ESS buffer to be read-only
+    (setq buffer-read-only t)           ; restore ESS buffer to be read-only
     ))
 
  ; Provide package

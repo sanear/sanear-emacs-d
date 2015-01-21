@@ -1,8 +1,8 @@
 ;;; ess-swv.el --- Some simple functions for ESS and Sweave
 
-;; Copyright (C) 2005 David Whiting, A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 2005 David Whiting, A.J. Rossini, Richard M. Heiberger, Martin
 ;;     Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
-;; Copyright (C) 2006-2008 A.J. Rossini, Rich M. Heiberger, Martin Maechler,
+;; Copyright (C) 2006-2008 A.J. Rossini, Richard M. Heiberger, Martin Maechler,
 ;;     Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; Author: David Whiting <david.whiting@ncl.ac.uk>
@@ -23,9 +23,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to
-;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;;; Commentary:
 
@@ -85,10 +84,11 @@
   (require 'ess-custom)
   (require 'ess)
   )
-(require 'noweb-mode)
+(require 'ess-noweb-mode)
 (require 'ess-r-d); for Rnw-mode
 (require 'easymenu)
 
+;; currently use exactly for "Sweave" and "Stangle"
 (defun ess-swv-run-in-R (cmd &optional choose-process)
   "Run \\[cmd] on the current .Rnw file.  Utility function not called by user."
   (let* ((rnw-buf (current-buffer)))
@@ -107,31 +107,92 @@
             ))
 
     (save-excursion
-      (ess-execute (format "require(tools)")) ;; Make sure tools is loaded.
+      ;; (ess-execute (format "require(tools)")) ;; Make sure tools is loaded.
       (basic-save-buffer); do not Sweave/Stangle old version of file !
-      (let* ((sprocess (get-ess-process ess-current-process-name))
+      (let* ((sprocess (ess-get-process ess-current-process-name))
              (sbuffer (process-buffer sprocess))
              (rnw-file (buffer-file-name))
              (Rnw-dir (file-name-directory rnw-file))
+             (buf-coding (symbol-name buffer-file-coding-system))
+             ;; could consider other encodings, but utf-8 is "R standard" for non-ASCII:
+             (cmd-args (concat "\"" rnw-file "\""
+                               (if (string-match "^utf-8" buf-coding)
+                                   ", encoding = \"utf-8\"")))
              (Sw-cmd
-              (format
-               "local({..od <- getwd(); setwd(%S); %s(%S); setwd(..od) })"
-               Rnw-dir cmd rnw-file))
-             )
+              (format ess-swv-processing-command cmd cmd-args)))
         (message "%s()ing %S" cmd rnw-file)
         (ess-execute Sw-cmd 'buffer nil nil)
         (switch-to-buffer rnw-buf)
         (ess-show-buffer (buffer-name sbuffer) nil)))))
 
+(defcustom ess-swv-processing-command ".ess_weave(%s, %s)"
+  "Command used by `ess-swv-run-in-R'.
+
+First %s is literally replaced by the processing command (for
+example: Sweave) second %s is replaced with a string containing a
+processed file and possibly additional argument encoding (example:
+\"path/to/foo.Rnw\", encoding='utf-8')
+
+.ess_weave changes the working directory to that of the supplied
+file.
+
+If you want to simply call knitr or Sweave in global environment
+set this command to \"%s(%s)\"."
+  :group 'ess-R
+  :type 'string)
+
+(defcustom ess-swv-processor 'sweave
+  "Processor to use for weaving and tangling.
+Currently 'sweave or 'knitr"
+  :group 'ess-R
+  :type '(choice (const sweave) (const knitr)))
+
+
 (defun ess-swv-tangle ()
+  "Run Stangle/purl on the current .Rnw file.
+Depending on the `ess-swv-processor' used."
+  (interactive)
+  (ess-swv-run-in-R (cond ((eq ess-swv-processor 'sweave)
+                           "Stangle")
+                          ((eq ess-swv-processor 'knitr)
+                           "purl")
+                          (t (error "Not a valid processor %s" ess-swv-processor)))))
+
+(defun ess-swv-weave (&optional choose)
+  "Run Sweave/knit on the current .Rnw file.
+Depending on the `ess-swv-processor' used.
+
+If CHOOSE is non-nil, offer a menu of available weavers.
+"
+  (interactive "P")
+  (let ((processor (if choose
+                       (ess-completing-read "Weaver" '("sweave" "knitr") nil t)
+                     (symbol-name ess-swv-processor))))
+    (ess-swv-run-in-R (cond ((equal processor "sweave")
+                             "Sweave")
+                            ((equal processor "knitr")
+                             "knit")
+                            (t (error "Not a valid processor %s" ess-swv-processor))))))
+
+(defun ess-swv-sweave ()
+  "Run Sweave on the current .Rnw file."
+  (interactive)
+  (ess-swv-run-in-R "Sweave"))
+
+(defun ess-swv-stangle ()
   "Run Stangle on the current .Rnw file."
   (interactive)
   (ess-swv-run-in-R "Stangle"))
 
-(defun ess-swv-weave ()
-  "Run Sweave on the current .Rnw file."
+(defun ess-swv-knit ()
+  "Run knit on the current .Rnw file."
   (interactive)
-  (ess-swv-run-in-R "Sweave"))
+  (ess-swv-run-in-R "knit"))
+
+(defun ess-swv-purl ()
+  "Run purl on the current .Rnw file."
+  (interactive)
+  (ess-swv-run-in-R "purl"))
 
 (defun ess-swv-latex ()
   "Run LaTeX on the product of Sweave()ing the current file."
@@ -164,27 +225,32 @@ Sweave file buffer name) and display it."
 (defun ess-swv-PDF (&optional pdflatex-cmd)
   "From LaTeX file, create a PDF (via 'texi2pdf' or 'pdflatex', ...), by
 default using the first entry of `ess-swv-pdflatex-commands' and display it."
-  (interactive
-   (list
-    (let ((def (elt ess-swv-pdflatex-commands 0)))
-      (ess-completing-read  "pdf latex command"
-                            ess-swv-pdflatex-commands ; <- collection to choose from
-                            nil 'confirm ; or 'confirm-after-completion
-                            nil nil def))))
+  (interactive)
+  (setq pdflatex-cmd
+        (or pdflatex-cmd
+            (and (eq (length ess-swv-pdflatex-commands) 1)
+                 (car ess-swv-pdflatex-commands))
+            (ess-completing-read  "pdf latex command"
+                                  ess-swv-pdflatex-commands ; <- collection to choose from
+                                  nil 'confirm ; or 'confirm-after-completion
+                                  nil nil (car ess-swv-pdflatex-commands))))
   (let* ((buf (buffer-name))
          (namestem (file-name-sans-extension (buffer-file-name)))
          (latex-filename (concat namestem ".tex"))
-         (tex-buf (get-buffer-create " *ESS-tex-output*"))
+         (tex-buf (get-buffer-create "*ESS-tex-output*"))
          (pdfviewer (ess-get-pdf-viewer))
          (pdf-status)
-         (cmdstr-win (format "start \"%s\" \"%s.pdf\""
-                             pdfviewer namestem))
-         (cmdstr (format "\"%s\" \"%s.pdf\" &" pdfviewer namestem)))
+         (cmdstr-win (format "start \"%s\" \"%s.pdf\"" pdfviewer namestem))
+         (pdffile (format "%s.pdf" namestem))
+         (cmd (if (stringp pdfviewer)
+                  (list pdfviewer pdffile)
+                (append pdfviewer  (list pdffile)))))
+
     ;;(shell-command (concat "pdflatex " latex-filename))
     (message "Running '%s' on '%s' ..." pdflatex-cmd latex-filename)
-    (switch-to-buffer tex-buf)
+    (with-current-buffer tex-buf (erase-buffer))
     (setq pdf-status
-          (call-process pdflatex-cmd nil tex-buf 1
+          (call-process pdflatex-cmd nil tex-buf t
                         (if (string= "texi2" (substring pdflatex-cmd 0 5))
                             ;; workaround (bug?): texi2pdf or texi2dvi *fail* to work with full path:
                             (file-name-nondirectory latex-filename)
@@ -192,12 +258,13 @@ default using the first entry of `ess-swv-pdflatex-commands' and display it."
     (if (not (= 0 pdf-status))
         (message "** OOPS: error in '%s' (%d)!" pdflatex-cmd pdf-status)
       ;; else: pdflatex probably ok
-      (shell-command
-       (concat (if (and ess-microsoft-p (w32-shell-dos-semantics))
-                   cmdstr-win
-                 cmdstr))))
-    (switch-to-buffer buf)
-    (display-buffer tex-buf)))
+      ;; (set-process-sentinel proc 'shell-command-sentinel)
+      (if (and ess-microsoft-p (w32-shell-dos-semantics))
+          (shell-command cmdstr-win)
+        (message (mapconcat 'identity cmd " "))
+        (apply 'start-process  (car cmd) nil cmd)))
+    (display-buffer tex-buf)
+  ))
 
 
 (defun ess-insert-Sexpr ()
@@ -287,17 +354,19 @@ file and latex the result."
 
 
 ;;; Now bind some keys.
-(define-key noweb-minor-mode-map "\M-ns" 'ess-swv-weave)
-(define-key noweb-minor-mode-map "\M-nT" 'ess-swv-tangle)
-(define-key noweb-minor-mode-map "\M-nl" 'ess-swv-latex)
-(define-key noweb-minor-mode-map "\M-np" 'ess-swv-PS)
-(define-key noweb-minor-mode-map "\M-nP" 'ess-swv-PDF)
+(define-key ess-noweb-minor-mode-map "\M-ns" 'ess-swv-weave)
+(define-key ess-noweb-minor-mode-map "\M-nT" 'ess-swv-tangle)
+(define-key ess-noweb-minor-mode-map "\M-nl" 'ess-swv-latex)
+(define-key ess-noweb-minor-mode-map "\M-np" 'ess-swv-PS)
+(define-key ess-noweb-minor-mode-map "\M-nP" 'ess-swv-PDF)
+(define-key ess-noweb-minor-mode-map "\M-nr" 'ess-swv-knit)
+(define-key ess-noweb-minor-mode-map "\M-nu" 'ess-swv-purl)
 
-(define-key noweb-minor-mode-map "\M-nx" 'ess-insert-Sexpr)
+(define-key ess-noweb-minor-mode-map "\M-nx" 'ess-insert-Sexpr)
 
 ;; AND add these to the noweb menu we have anyway ! :
 (easy-menu-define ess-swv-menu
-  noweb-minor-mode-menu
+  ess-noweb-minor-mode-menu
   "Submenu for use in `Rnw-mode'."
 
   '("Sweaving, Tangling, ..."
@@ -306,6 +375,8 @@ file and latex the result."
     ["LaTeX"  ess-swv-latex   t]
     ["PDF(LaTeX)" ess-swv-PDF t]
     ["PS (dvips)" ess-swv-PS  t]
+    ["Knit" ess-swv-knit   t]
+    ["Purl" ess-swv-purl   t]
     ["Insert Sexpr" ess-insert-Sexpr t]
     ["AUCTeX Interface" ess-swv-toggle-plug-into-AUCTeX
      :style toggle :selected ess-swv-plug-into-AUCTeX-p]
@@ -315,13 +386,13 @@ file and latex the result."
     (add-hook 'Rnw-mode-hook
               (lambda ()
                 ;; This adds to top menu:
-                ;; (easy-menu-add ess-swv-menu noweb-minor-mode-map)
+                ;; (easy-menu-add ess-swv-menu ess-noweb-minor-mode-map)
                 ;; But that's using an unnecessary extra level -- FIXME
-                (easy-menu-add-item noweb-minor-mode-menu
+                (easy-menu-add-item ess-noweb-minor-mode-menu
                                     '("Sweave");; 'nil' adds to top
                                     ess-swv-menu)))
   ;; normal GNU Emacs:
-  (easy-menu-add-item noweb-minor-mode-menu
+  (easy-menu-add-item ess-noweb-minor-mode-menu
                       nil ;; <= path
                       ess-swv-menu))
 

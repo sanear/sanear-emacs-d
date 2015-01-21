@@ -1,7 +1,7 @@
 ;;; ess-r-args.el --- Insert R function's arguments
 
 ;; Copyright (C) 2007 Sven Hartenstein <mail at svenhartenstein dot de>
-;; Copyright (C) 2007 A.J. Rossini, Rich M. Heiberger, Martin
+;; Copyright (C) 2007 A.J. Rossini, Richard M. Heiberger, Martin
 ;;      Maechler, Kurt Hornik, Rodney Sparapani, and Stephen Eglen.
 
 ;; This file is part of ESS
@@ -16,10 +16,8 @@
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-;; Boston, MA 02111-1307, USA.
+;; A copy of the GNU General Public License is available at
+;; http://www.r-project.org/Licenses/
 
 ;; Last update: 2012-02-27
 
@@ -274,7 +272,7 @@ and their default values of an R function. Built on \\[ess-r-args-show]."
   (insert "("); (skeleton-pair-insert-maybe nil)
   (if (and (not eldoc-mode)
            ess-local-process-name ; has a process and it must still be running
-           (get-ess-process ess-local-process-name))
+           (ess-get-process ess-local-process-name))
       (ess-r-args-show)))
 
 ;; MM: I would strongly discourage use of the following:
@@ -293,67 +291,61 @@ ess-r-args-current-function if no argument given."
         (insert args)
         (goto-char pointpos))))
 
-;; ;; call ess-r-args-show automatically --- this should be optional
-;; now in ess-mode.el :
-;; (if ess-r-args-electric-paren ; <<- in ./ess-custom.el -- default nil
-;;     (add-hook 'ess-mode-hook
-;;            (lambda ()
-;;              (define-key ess-mode-map "(" 'ess-r-args-auto-show))))
+
+;; (defvar ess-r-object-tooltip-alist
+;;   '((numeric    . "summary")
+;;     (integer    . "summary")
+;;     (factor     . "table")
+;;     (lm         . "summary")
+;;     (other      . "str"))
+;;   "List of (<class> . <R-function>) to be used in \\[ess-r-object-tooltip].
+;;  For example, when called while point is on a factor object, a table of that
+;;  factor will be shown in the tooltip.
+;;  The special key \"other\" in the alist defines which function to call when
+;;  the class is not mached in the alist.  The default, str(), is a fairly useful
+;;  default for many, including data.frame and function objects.")
+
+;; From Erik Iversion, slightly modified,
+;; http://www.sigmafield.org/2009/10/01/r-object-tooltips-in-ess/
+;; (defun ess-r-object-tooltip ()
+;;   "Get info for object at point, and display it in a tooltip."
+;;   (interactive)
+;;   (let ((proc (ess-get-process))
+;;         (objname (current-word))
+;;         (curbuf (current-buffer))
+;;         (tmpbuf (get-buffer-create " *ess-r-object-tooltip*"))
+;;         bs)
+;;     (when objname
+;;       (ess-write-to-dribble-buffer
+;;        (format "ess-r-object-tooltip: objname='%s'\n" objname))
+;;       (ess-command (concat "class(" objname ")\n") tmpbuf nil nil nil proc)
+;;       (with-current-buffer tmpbuf
+;;         (goto-char (point-min))
+;;         ;; CARE: The following can only work in an English language locale!
+;;         ;; .lang. <- Sys.getenv("LANGUAGE"); Sys.setenv(LANGUAGE="en")
+;;         ;; .lc. <- Sys.getlocale("LC_MESSAGES"); Sys.setlocale("LC_MESSAGES","en_US.utf-8")
+;;         ;; and *afterward*  Sys.setenv(LANGUAGE=.lang.); Sys.setlocale("LC_MESSAGES", .lc.)
+;;         ;; but that fails sometimes, e.g., on Windows
+;;         (unless (re-search-forward "\(object .* not found\)\|unexpected" nil t)
+;;           (re-search-forward "\"\\(.*\\)\"" nil t)
+;;           (let* ((objcls (match-string 1))
+;;                  (myfun (or (cdr (assoc-string objcls ess-r-object-tooltip-alist))
+;;                             (cdr (assoc 'other ess-r-object-tooltip-alist)))))
+;;             (ess-command (concat myfun "(" objname ")\n") tmpbuf nil nil nil proc))
+;;           (setq bs (buffer-string)))))
+;;     (if bs
+;;       (ess-tooltip-show-at-point bs 0 30))))
+
+;; Erik: my default key map
+;;(define-key ess-mode-map "\C-c\C-g" 'ess-r-object-tooltip)
+
+;; On http://www.sigmafield.org/2009/10/01/r-object-tooltips-in-ess/
+;; in the comments, "Charlie" recommended
+
+;; (custom-set-faces
+;; '(tooltip ((t (:background "white" :foreground "blue" :foundry "fixed")))))
 
 
-;; SJE: 2009-01-30 -- this contribution from
-;; Erik Iverson <iverson@biostat.wisc.edu>
-
-(defun ess-tooltip-show-at-point (text xo yo)
-  "Show a tooltip displaying 'text' at (around) point, xo and yo are x-
-and y-offsets for the toolbar from point."
-  (let (
-        (fx (frame-parameter nil 'left))
-        (fy (frame-parameter nil 'top))
-        (fw (frame-pixel-width))
-        (fh (frame-pixel-height))
-        frame-left frame-top my-x-offset my-y-offset)
-
-    ;; The following comment was found before code looking much like that
-    ;; of frame-left and frame-top below in the file
-    ;; tooltip-help.el. I include it here for acknowledgement, and I did observe
-    ;; the same behavior with the Emacs window maximized under Windows XP.
-
-    ;; -----original comment--------
-    ;; handles the case where (frame-parameter nil 'top) or
-    ;; (frame-parameter nil 'left) return something like (+ -4).
-    ;; This was the case where e.g. Emacs window is maximized, at
-    ;; least on Windows XP. The handling code is "shamelessly
-    ;; stolen" from cedet/speedbar/dframe.el
-    ;; (contributed by Andrey Grigoriev)
-
-    (setq frame-left (if (not (consp fx))
-                         fx
-                       (if (eq (car fx) '-)
-                           (- (x-display-pixel-width) (car (cdr fx)) fw)
-                         (car (cdr fx)))))
-
-    (setq frame-top (if (not (consp fy))
-                        fy
-                      (if (eq (car fy) '-)
-                          (- (x-display-pixel-height) (car (cdr fy)) fh)
-                        (car (cdr fy)))))
-
-    ;; calculate the offset from point, use xo and yo to adjust to preference
-    (setq my-x-offset (+ (car(window-inside-pixel-edges))
-                         (car(posn-x-y (posn-at-point)))
-                         frame-left xo))
-
-    (setq my-y-offset (+ (cadr(window-inside-pixel-edges))
-                         (cdr(posn-x-y (posn-at-point)))
-                         frame-top yo))
-
-    (let ((tooltip-frame-parameters
-           (cons (cons 'top my-y-offset)
-                 (cons (cons 'left my-x-offset)
-                       tooltip-frame-parameters))))
-      (tooltip-show text))
-    ))
 
 (provide 'ess-r-args)
 
