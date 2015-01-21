@@ -13,12 +13,12 @@
 [submodule "plugins/php-mode"]
 	path = plugins/php-mode
 	url = git@github.com:ejmr/php-mode.git
-[submodule "plugins/python-mode"]
-	path = plugins/python-mode
-	url = git@github.com:emacsmirror/python-mode.git
 [submodule "plugins/ESS"]
 	path = plugins/ESS
 	url = git@github.com:emacs-ess/ESS.git
 [submodule "plugins/yaml-mode"]
 	path = plugins/yaml-mode
 	url = git@github.com:yoshiki/yaml-mode.git
+[submodule "plugins/python-mode"]
+	path = plugins/python-mode
+	url = git@github.com:emacsmirror/python-mode.git
