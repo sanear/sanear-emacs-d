@@ -22,3 +22,4 @@
 [submodule "plugins/python-mode"]
 	path = plugins/python-mode
 	url = git@github.com:emacsmirror/python-mode.git
+    ignore = dirty
