@@ -10,7 +10,7 @@
 (add-to-list 'load-path "~/.emacs.d/plugins/")
 
 ;; Golang mode
-(add-to-list 'load-path "~/.emacs.d/plugins/go-mode")
+(add-to-list 'load-path "~/.emacs.d/plugins/go-mode.el")
 (require 'go-mode-autoloads)
 
 ;; Golang autocompletion
@@ -57,13 +57,6 @@
 
 ;; Keybinding for the MagritteR pipe '%>%'
 (define-key ess-mode-map [(super .)] "%>%")
-
-;; Using ssh.el to do remote ESS R sessions
-(require 'ssh)
-
-;; Using Tramp for ssh
-(add-to-list 'load-path "~/emacs/tramp/lisp/")
-(require 'tramp)
 
 ;; Python stuff
 (add-to-list 'load-path "~/.emacs.d/plugins/python-mode.el-6.0.10/")
