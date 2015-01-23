@@ -49,7 +49,7 @@
         (define-key yaml-mode-map "\C-m" 'newline-and-indent)))
 
 ;; Using the ESS (emacs speaks statistics) package
-(add-to-list 'load-path "~/.emacs.d/plugins/ESS/lisp")
+(add-to-list 'load-path "~/.emacs.d/plugins/ess/lisp")
 (require 'ess-site)
 
 ;; Other ESS bits
