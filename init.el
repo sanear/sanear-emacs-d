@@ -7,6 +7,9 @@
 ;; I don't like vc-git, and it takes forever to load
 (setq vc-handled-backends ())
 
+;; Ubuntu is broken somehow, can't do C-M-% with this laptop. Whatever.
+(global-set-key (kbd "C-M-q") 'query-replace-regexp)
+
 (add-to-list 'load-path "~/.emacs.d/plugins/")
 
 ;; Golang mode
