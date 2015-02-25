@@ -7,6 +7,17 @@
 ;; I don't like vc-git, and it takes forever to load
 (setq vc-handled-backends ())
 
+;; Reconfigure default backup settings
+(setq
+ backup-by-copying t      ; don't clobber symlinks
+ backup-directory-alist
+ '(("." . "~/.saves"))    ; don't litter my fs tree
+ delete-old-versions t
+ kept-new-versions 2
+ kept-old-versions 1
+    version-control t)       ; use versioned backups
+
+;; PLUGINS
 (add-to-list 'load-path "~/.emacs.d/plugins/")
 
 ;; Golang mode
@@ -75,20 +86,6 @@
           (function (lambda()
                       (setq intent-tabs-mode nil
                             tab-width 4))))
-
-;; Electric Pairs
-(add-hook 'python-mode-hook
-     (lambda ()
-      (define-key python-mode-map "\"" 'electric-pair)
-      (define-key python-mode-map "\'" 'electric-pair)
-      (define-key python-mode-map "(" 'electric-pair)
-      (define-key python-mode-map "[" 'electric-pair)
-      (define-key python-mode-map "{" 'electric-pair)))
-(defun electric-pair ()
-  "Insert character pair without sournding spaces"
-  (interactive)
-  (let (parens-require-spaces)
-    (insert-pair)))
 
 ;;; bind RET to py-newline-and-indent
 (add-hook 'python-mode-hook '(lambda () 
