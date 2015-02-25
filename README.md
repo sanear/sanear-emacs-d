@@ -1,7 +1,7 @@
 My .emacs.d directory
 ==============
 
-For best results, run git clone git@github.com:sanear/sanear-emacs-d.git .emacs.d in your HOME directory.
+For best results, run `git clone git@github.com:sanear/sanear-emacs-d.git .emacs.d` in your `$HOME` directory.
 Your installation of emacs should pick up all of the configuration and plugins you'd like.
 Not that I think this is a particularly good emacs setup - just works for me - but it didn't seem worth $7/mo to keep it private, so use away.
 
